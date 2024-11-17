@@ -1,0 +1,143 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Python version: 3.6
+import json
+import math
+import os
+import copy
+import random
+import time
+import pickle
+import numpy as np
+from tqdm import tqdm
+
+import torch
+from tensorboardX import SummaryWriter
+
+from options import args_parser
+import common
+from update import LocalUpdate, test_inference
+from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
+from utils import get_dataset, average_weights, exp_details, shard_num_generate, solve, mySolve, mySolve3, mySolve2
+from param_cal import cal_model_param, cal_uplink_rate, cal_model_activation, cal_model_flops
+from random_generate import compute_capacity_rand_generate
+from scipy.special import lambertw
+from alog import Algo
+
+rho, rho2 = common.get_rho()
+
+if __name__ == '__main__':
+    os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+    start_time = time.time()
+
+    # define paths
+    path_project = os.path.abspath('..')
+    logger = SummaryWriter('../logs')
+    sigma = 0.00075
+
+    common.train_seed()
+    args = args_parser()
+    exp_details(args)
+    args.epochs = 70
+    div = 1  # 7 和 17
+    print("div: ",div)
+
+    device = 'cuda' if args.gpu else 'cpu'
+
+    # load dataset and user groups
+    train_dataset, test_dataset, user_groups = get_dataset(args)
+    user_groups = shard_num_generate(args.num_users,len(train_dataset))
+    # BUILD MODEL
+    global_model,tempModel = common.model_get(args,train_dataset)
+
+    # Set the model to train and send it to device.
+    print(global_model)
+
+    # copy weights
+    global_weights = global_model.state_dict()
+
+    # Training
+    train_loss, train_accuracy = [], []
+    val_acc_list, net_list = [], []
+    cv_loss, cv_acc = [], []
+    print_every = 1
+    val_loss_pre, counter = 0, 0
+
+    """
+    每一轮训练开始阶段，随机初始化每个客户端的训练行为a_k,t,
+        训练开始之后，通过二分搜索找到b_0,t,(先假定FL共同的带宽用来传输所有的数据，即FL的时延由计算能力最慢的设备决定，同时SL未优化分割层在第2层/第一层）
+            对于SL用户，得到了b_0,t  ,那么只需要优化分割层
+            对于FL 用户，得到了b_0,t 只需要优化每个FL用户的带宽分配  训练开始之后，通过gibbs算法结合二分时间搜索获取带宽和x_k
+        然后通过gibbs进行用户训练行为的更改
+    """
+
+    sample = train_dataset[0][0]
+    sample_size = sample.shape[0] * sample.shape[1] * sample.shape[2]
+    model_param, flops = cal_model_flops(global_model, sample)
+    activations = cal_model_activation(tempModel, sample)  # 分别获取模型每一层的计算量、每一层的模型参数量，每一层的激活值个数
+    global_model.to(device)
+    global_model.train()
+
+    base_file_name = "../save/output/conference/cmpResult/rho/"
+
+    for rho in range(1,100):
+        res = ""
+        rho/=1000
+        file_name = base_file_name + str(rho)+".csv"
+
+        for epoch in tqdm(range(args.epochs)):
+            compute_list = compute_capacity_rand_generate(args.num_users)  # 获取每个用户的计算能力
+            capacity, signal_cap,Bandwidth,noise,pku = cal_uplink_rate(args.num_users)  # 获取每个用户的噪声和信号功率
+            local_weights, local_losses = [0] * args.num_users, [0] * args.num_users
+
+            global_model.train()
+            decisionLst = []
+            while True:
+                action_lst = [random.randint(0, 1) for _ in range(args.num_users)]
+                fl_lst = [1 if action_lst[i] == 1 else 0 for i in range(args.num_users)]
+                sl_lst = [1 if action_lst[i] == 0 else 0 for i in range(args.num_users)]  # 随机初始化两种学习方式的客户端
+                if sum(fl_lst) == 0:
+                    continue
+                else:
+                    break
+            algo = Algo(fl_lst,sl_lst,capacity,Bandwidth,signal_cap,model_param,activations,user_groups,
+                        args,flops,compute_list,sample_size,pku,rho2 =10)
+
+            fld,sld = algo.cal_delay()
+
+            local_optim = 0
+
+            ut_value = max(fld, sld) - (sum(sl_lst)*(sum(sl_lst)-1))/rho #  归一化求解
+            total_delay = max(fld, sld)
+            ut_lst = []
+            ut_lst_lst = []
+            G = 1000
+            # for local_optim in range(G):
+            for local_optim in range(G):
+                old = (fl_lst[:],sl_lst[:])
+                fl_lst,sl_lst = common.generate_new_lst(fl_lst,sl_lst,args)
+                algo.update_partition(fl_lst,sl_lst)
+                ind = 0
+                # while True:
+                b0 = algo.binary_b0(True,False)
+
+                fld,sld = algo.cal_delay()
+
+                a = max(fld, sld)
+                b = (sum(sl_lst)*(sum(sl_lst)-1))/rho
+                delay = max(fld, sld)
+
+                ut_value_new = a - b #  归一化求解
+                ut_dif = ut_value_new - ut_value
+                epsilon = common.cal_epsilon(ut_dif)
+                if random.random()>epsilon:
+                    fl_lst,sl_lst = old  # 回滚
+                else:
+                    ut_value = ut_value_new
+                    total_delay = delay
+
+            res+= f"{sum(algo.sl_lst)},{total_delay}\n"
+            with open(file_name,'w') as f:
+                f.write(res)
+
+    print('\n Total Run Time: {0:0.4f}'.format(time.time() - start_time))
