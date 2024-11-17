@@ -41,7 +41,6 @@ if __name__ == '__main__':
         torch.cuda.manual_seed_all(seed)
     # define paths
     path_project = os.path.abspath('..')
-    logger = SummaryWriter('../logs')
 
     args = args_parser()
     exp_details(args)
@@ -102,8 +101,12 @@ if __name__ == '__main__':
 
     sample = train_dataset[0][0]
     sample_size = sample.shape[0] * sample.shape[1] * sample.shape[2]
-    model_param, flops = cal_model_flops(tempModel, sample)
-    activations = cal_model_activation(tempModel, sample)  # 分别获取模型每一层的计算量、每一层的模型参数量，每一层的激活值个数
+    with open("tempDate/activations", "r") as f:
+        activations = json.load(f)
+    with open("tempDate/flops", "r") as f:
+        flops = json.load(f)
+    with open("tempDate/model_param", "r") as f:
+        model_param = json.load(f)
     global_model.to(device)
     global_model.train()
     res =[] # 最后的结果保存，【
@@ -138,13 +141,13 @@ if __name__ == '__main__':
             global_model.to(device)
             # print(idx, '----------------', len(user_groups[idx]), '--------------', len(user_groups))
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=logger)
+                                      idxs=user_groups[idx])
             w, loss = local_model.update_weights(
                 model=copy.deepcopy(global_model), global_round=epoch,local_weights=local_weights,local_losses=local_losses)
             local_weights[idx] = copy.deepcopy(w)
             local_losses[idx] = copy.deepcopy(loss)
         # local_model = [LocalUpdate(args=args, dataset=train_dataset,
-        #                            idxs=user_groups[idx], logger=logger) for idx in fl_lst]
+        #                            idxs=user_groups[idx]) for idx in fl_lst]
         # threads = [threading.Thread(target=client.update_weights, args=(
         #     copy.deepcopy(global_model), epoch, local_weights, local_losses, i)) for i, client in
         #            enumerate(local_model)]
@@ -164,7 +167,7 @@ if __name__ == '__main__':
         global_model.eval()
         for idx in range(args.num_users):
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=logger)
+                                      idxs=user_groups[idx])
             acc, loss = local_model.inference(model=global_model)
             list_acc.append(acc)
             list_loss.append(loss)

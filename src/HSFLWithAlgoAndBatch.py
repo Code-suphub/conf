@@ -34,7 +34,6 @@ if __name__ == '__main__':
 
         # define paths
         path_project = os.path.abspath('..')
-        logger = SummaryWriter('../logs')
 
         common.train_seed()
 
@@ -179,7 +178,7 @@ if __name__ == '__main__':
             if a == 1:
                 print("FL：   ", idx, '----------------', algo.batch_size_lst[idx], '------------',len(sample_data[idx]), '--------------', len(user_groups))
                 local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                          idxs=sample_data[idx], logger=logger)
+                                          idxs=sample_data[idx])
                 w, loss = local_model.update_weights(
                     model=copy.deepcopy(global_model), global_round=epoch, local_losses=local_losses,
                     local_weights=local_weights)
@@ -191,7 +190,7 @@ if __name__ == '__main__':
             if a == 1:
                 print("SL：   ",idx, '----------------', algo.batch_size_lst[idx], '------------',len(sample_data[idx]), '--------------', len(user_groups))
                 local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                          idxs=sample_data[idx], logger=logger)
+                                          idxs=sample_data[idx])
                 w, loss = local_model.update_weights(
                     model=copy.deepcopy(global_model), global_round=epoch, local_weights=local_weights,
                     local_losses=local_losses)
@@ -214,7 +213,7 @@ if __name__ == '__main__':
         global_model.eval()
         for c in range(args.num_users):
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[c], logger=logger)
+                                      idxs=user_groups[c])
             acc, loss = local_model.inference(model=global_model)
             list_acc.append(acc)
             list_loss.append(loss)

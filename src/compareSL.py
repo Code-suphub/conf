@@ -159,7 +159,7 @@ if __name__ == '__main__':
                 global_model.load_state_dict(w)
                 ind+=1
         # local_model = [LocalUpdate(args=args, dataset=train_dataset,
-        #                            idxs=user_groups[idx], logger=logger) for idx in sl_lst]
+        #                            idxs=user_groups[idx]) for idx in sl_lst]
         # threads = [threading.Thread(target=client.update_weights, args=(
         #     copy.deepcopy(global_model), epoch, local_weights, local_losses, i)) for i, client in
         #            enumerate(local_model)]

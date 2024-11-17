@@ -40,7 +40,6 @@ if __name__ == '__main__':
 
     # define paths
     path_project = os.path.abspath('..')
-    logger = SummaryWriter('../logs')
 
     args = args_parser()
     exp_details(args)
@@ -102,8 +101,12 @@ if __name__ == '__main__':
     B = 1  # 带宽总额度
     sample = train_dataset[0][0]
     sample_size = sample.shape[0] * sample.shape[1] * sample.shape[2]
-    model_param, flops = cal_model_flops(global_model, sample)
-    activations = cal_model_activation(tempModel, sample)  # 分别获取模型每一层的计算量、每一层的模型参数量，每一层的激活值个数
+    with open("tempDate/activations", "r") as f:
+        activations = json.load(f)
+    with open("tempDate/flops", "r") as f:
+        flops = json.load(f)
+    with open("tempDate/model_param", "r") as f:
+        model_param = json.load(f)
     global_model.to(device)
     global_model.train()
     res =[]
@@ -141,7 +144,7 @@ if __name__ == '__main__':
             if a==1:
                 # print(idx, '----------------', len(user_groups[idx]), '--------------', len(user_groups))
                 local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                          idxs=user_groups[idx], logger=logger)
+                                          idxs=user_groups[idx])
                 w, loss = local_model.update_weights(
                     model=copy.deepcopy(global_model), global_round=epoch,local_losses=local_losses,local_weights=local_weights)
                 local_weights[ind]=copy.deepcopy(w)
@@ -153,7 +156,7 @@ if __name__ == '__main__':
             if a==1:
                 # print(idx, '----------------', len(user_groups[idx]), '--------------', len(user_groups))
                 local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                          idxs=user_groups[idx], logger=logger)
+                                          idxs=user_groups[idx])
                 w, loss = local_model.update_weights(
                     model=copy.deepcopy(sl_global_model), global_round=epoch,local_weights=local_weights,local_losses=local_losses)
                 local_weights[ind]=copy.deepcopy(w)
@@ -175,7 +178,7 @@ if __name__ == '__main__':
         global_model.eval()
         for c in range(args.num_users):
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[c], logger=logger)
+                                      idxs=user_groups[c])
             acc, loss = local_model.inference(model=global_model)
             list_acc.append(acc)
             list_loss.append(loss)

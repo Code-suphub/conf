@@ -95,7 +95,7 @@ class Algo:
         self.lambda_lst = [1] *len(self.fl_lst)
         self.mu = 1
         self.user_num = len(self.user_groups)
-        self.b_k_values = np.linspace(20, 200000, 40000)[::-1]
+        # self.b_k_values = np.linspace(20, 200000, 40000)[::-1]
 
         # # 下面是生成当前round 的初始时延上届，以纯 SL 的时延作为上届值
         # self.slr = [1 / args.num_users for _ in range(self.args.num_users)]
@@ -205,9 +205,9 @@ class Algo:
         t_lower_bound = max(fl_non_uplink_delay)
         self.bandwidth_lst = [band * (1 - self.b0) * self.Bandwidth for band in self.fl_band_ratio]
         cnt = 0
-        equation_values = [
-            [equation(b_k, self.signal_cap[i], self.pku,self.noise, self.model_param[-1]) for b_k in self.b_k_values] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)
-        ]
+        # equation_values = [
+        #     [equation(b_k, self.signal_cap[i], self.pku,self.noise, self.model_param[-1]) for b_k in self.b_k_values] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)
+        # ]
         while True:
             """
             t_upper_bound:     fl时延的上界，初始值均匀分配带宽时的fl时延最大值

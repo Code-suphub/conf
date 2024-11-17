@@ -32,7 +32,6 @@ if __name__ == '__main__':
 
     # define paths
     path_project = os.path.abspath('..')
-    logger = SummaryWriter('../logs')
     sigma = 0.00075
 
     common.train_seed()
@@ -73,8 +72,12 @@ if __name__ == '__main__':
 
     sample = train_dataset[0][0]
     sample_size = sample.shape[0] * sample.shape[1] * sample.shape[2]
-    model_param, flops = cal_model_flops(global_model, sample)
-    activations = cal_model_activation(tempModel, sample)  # 分别获取模型每一层的计算量、每一层的模型参数量，每一层的激活值个数
+    with open("tempDate/activations", "r") as f:
+        activations = json.load(f)
+    with open("tempDate/flops", "r") as f:
+        flops = json.load(f)
+    with open("tempDate/model_param", "r") as f:
+        model_param = json.load(f)
     global_model.to(device)
     global_model.train()
 
