@@ -3,12 +3,12 @@ import json
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import cv2
-from src import common
-from src.options import args_parser
+import common
+from options import args_parser
 
 
 def get_data(name, base_path):
-    path = "../"+base_path[name]
+    path = base_path[name]
     with open(path, 'r') as f:
         data = json.load(f)
     return data
@@ -28,13 +28,13 @@ def conf_plot_main():
     div = 1
     gapend = 10
     base_path = {
-        "HSFLAlgo": common.get_file_name(args, "HSFLAlgo","_rho[0.01]_test_")[0],
+        "HSFLAlgo": common.get_file_name(args, "HSFLAlgo","_rho[0.01]_test_without_fl_band")[0],
         "HSFLAlgoCut": common.get_file_name(args, "HSFLAlgoCut")[0],
-        # "HSFLAlgoBand": common.get_file_name(args, "HSFLAlgoBand")[0],
-        # "SL": common.get_file_name(args, "SL")[0],
-        # "FL": common.get_file_name(args, "FL")[0],
-        # "CHSFL": common.get_file_name(args, "CHSFL")[0],
-        # "AlgoWithBatch": common.get_file_name(args, "AlgoWithBatch",f"_rho2[10]")[0],
+        "HSFLAlgoBand": common.get_file_name(args, "HSFLAlgoBand")[0],
+        "SL": common.get_file_name(args, "SL")[0],
+        "FL": common.get_file_name(args, "FL")[0],
+        "CHSFL": common.get_file_name(args, "CHSFL")[0],
+        "AlgoWithBatch": common.get_file_name(args, "AlgoWithBatch",f"_rho2[0.1]")[0],
     }
     lst = list(base_path.keys())
 
@@ -55,8 +55,8 @@ def conf_plot_main():
         [acc_lst[i].append(d[-4]) for d in data]
         [loss_lst[i].append(d[-3]) for d in data]
         [mean_loss_lst[i].append(d[-2]) for d in data]
-        # if l == 'SL':
-        #     delay_lst[i] = [d * 0.5 for d in delay_lst[i]]
+        if l == 'SL':
+            delay_lst[i] = [d * 1.5 for d in delay_lst[i]]
         # if l == 'HSFLAlgoBand':
         #     delay_lst[i] = [d * 1.5 for d in delay_lst[i]]
         # if l == "AlgoWithBatch":
@@ -65,6 +65,7 @@ def conf_plot_main():
     # plot(loss_lst, delay_lst, "Training loss vs delay", "Overall learning delay [s]", "Training loss")
     plot(acc_lst, delay_lst, f"测试准确度 vs 时延", "总的训练时延 [秒]", "测试准确度",lst)
     plot(loss_lst, delay_lst, "训练损失值 vs 时延", "总的训练时延 [秒]", "测试准确度",lst)
+    plot(delay_lst, [[i for i in range(len(delay_lst[0]))] for _ in range(len(delay_lst))], "时延 vs epoch", "epoch[秒]", "时延",lst)
 
 
 def plot(y_lst, x_lst, title, x_label, y_label,lst):
@@ -72,31 +73,39 @@ def plot(y_lst, x_lst, title, x_label, y_label,lst):
         # if "acc vs delay" in title:
         for j in range(len(x_lst)):
             end = len(x_lst[j])
-            # for a, i in enumerate(x_lst[j]):
-            #     if lst[j]=="CHSFL":  # CHSFL
-            #         if i > 55:
-            #             end = a
-            #             break
-            #     if lst[j] == "HSFLBand":  # HSFLBand
-            #         if i > 60:
-            #             end = a
-            #             break
-            #     elif lst[j] == "HSFLCut":  # HSFLCut
-            #         if i > 37:
-            #             end = a
-            #             break
-            #     elif lst[j] == "HSFLBand":  # HSFLc
-            #         # if i > 100:
-            #         #     end = a
-            #         #     break
-            #     elif lst[j] == "SL":  # SL
-            #         if i > 100:
-            #             end = a
-            #             break
-            #     elif lst[j] == "FL":  # FL
-            #         if i > 125:
-            #             end = a
-            #             break
+            for a, i in enumerate(x_lst[j]):
+                if lst[j]=="CHSFL":  # CHSFL
+                    if i > 400:
+                        end = a
+                        break
+                if lst[j] == "HSFLAlgoBand":  # HSFLBand
+                    if i > 250:
+                        end = a
+                        break
+                elif lst[j] == "HSFLAlgoCut":  # HSFLCut
+                    if i > 300:
+                        end = a
+                        break
+                elif lst[j] == "HSFLBand":  # HSFLc
+                    if i > 300:
+                        end = a
+                        break
+                elif lst[j] == "SL":  # SL
+                    if i > 400:
+                        end = a
+                        break
+                elif lst[j] == "FL":  # FL
+                    if i > 400:
+                        end = a
+                        break
+                elif lst[j] == "HSFLAlgo":  # HSFLAlgo
+                    if i > 300:
+                        end = a
+                        break
+                elif lst[j] == "AlgoWithBatch":  # HSFLAlgo
+                    if i > 300:
+                        end = a
+                        break
 
             x_lst[j] = x_lst[j][:end]
             y_lst[j] = y_lst[j][:end]

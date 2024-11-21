@@ -21,7 +21,7 @@ def compute_capacity_rand_generate(n: int) -> List[int]:
     dist = [math.floor(d) * base /kappa for d in dist]
     idx = random.randint(0,len(dist)-1)
     div = 1
-    print("*"*20+str(div)+"*"*20)
+    # print("*"*20+str(div)+"*"*20)
     dist[idx]/=div
     dist.append(500*base/kappa)  # 服务器的计算性能是普通客户端的五十倍
     return dist

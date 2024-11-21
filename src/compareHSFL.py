@@ -111,7 +111,7 @@ if __name__ == '__main__':
     global_model.train()
     res =[]
     pkd = 100
-    cut_layer = 4
+    cutlay_lst = [0]*10 + [1]*10
 
 
     file_name,args = common.get_file_name(args,"CHSFL")
@@ -136,7 +136,7 @@ if __name__ == '__main__':
 
         algo = Algo(fl_lst,sl_lst,capacity,Bandwidth,signal_cap,model_param,activations,user_groups,
                     args,flops,compute_list,sample_size,pku,rho2=20)
-        algo.cutlayer_lst = [cut_layer for i in range(len(sl_lst))]
+        algo.cutlayer_lst = cutlay_lst
         fld, sld = algo.cal_delay()  # sl 是取总和，fl是取最大值
         res.append([sum(sl_lst),max(fld,sld)])  # 保留sl用户的数量和本轮的时延
         ind=0

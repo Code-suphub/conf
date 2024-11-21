@@ -11,9 +11,6 @@ import pickle
 import numpy as np
 from tqdm import tqdm
 
-import torch
-from tensorboardX import SummaryWriter
-
 from options import args_parser
 import common
 from update import LocalUpdate, test_inference
@@ -83,6 +80,7 @@ if __name__ == '__main__':
     res = []
 
     file_name,args = common.get_file_name(args,"HSFLAlgoBand")
+    cutlay_lst = [0]*6 + [1]*15
 
     for epoch in tqdm(range(args.epochs)):
         compute_list = compute_capacity_rand_generate(args.num_users)  # 获取每个用户的计算能力
@@ -117,7 +115,7 @@ if __name__ == '__main__':
             fl_lst,sl_lst = common.generate_new_lst(fl_lst,sl_lst,args)
             algo.update_partition(fl_lst,sl_lst)
             ind = 0
-            b0 = algo.binary_b0(False,True)
+            b0 = algo.binary_b0(False,True,cutlay_lst= cutlay_lst)
 
             fld,sld = algo.cal_delay()
 

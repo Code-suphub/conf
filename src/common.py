@@ -4,7 +4,7 @@ import random
 import numpy as np
 import torch
 
-from src.models import *
+from models import *
 
 file_base = "../save/output/conference/trainRes/"
 file_mid = "_dataset[{}]_model[{}]_epoch[{}]_frac[{}]_iid[{}]_local_epoch[{}]_Bs[{}]_lr[{}]"
@@ -112,7 +112,7 @@ def cal_epsilon(ut_dif):
     return epsilon
 
 rho = 0.01
-rho2 = 10
+rho2 = 0.1
 def get_rho():
     return rho,rho2
 

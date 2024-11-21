@@ -149,6 +149,7 @@ if __name__ == '__main__':
         ut_lst_lst.append(ut_lst)
 
         if True:
+            total_delay = max(fld, sld)
             res.append([sum(sl_lst), total_delay])
             # continue
             ind = 0

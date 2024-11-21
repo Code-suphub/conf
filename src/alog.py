@@ -118,7 +118,7 @@ class Algo:
 
     # def update_device_partition
 
-    def binary_b0(self,cut_,band_,batch_lst=None):
+    def binary_b0(self,cut_,band_,batch_lst=None,cutlay_lst = None):
         if batch_lst==None:
             batch_lst = [len(i) for i in self.user_groups]
 
@@ -144,7 +144,8 @@ class Algo:
             self.sl_bandwidth, self.fl_bandwidth = self.b0 * self.Bandwidth, (1 - self.b0) * self.Bandwidth
             fld, sld = self.cal_delay()
             if cut_:
-                self.cut_decision(batch_lst)
+                # self.cut_decision(batch_lst)
+                self.cutlayer_lst = cutlay_lst if cutlay_lst!=None else  [0 if self.sl_lst[i]==1 else [-1000,-1000]  for i in range(self.user_num) ]
             if band_:
                 self.bandwidth_with_delay_bin()
             fld, sld = self.cal_delay()
@@ -443,6 +444,7 @@ class Algo:
     def cal_compute_delay(self,batch_lst = None):
         if batch_lst is None:
             batch_lst = [len(i) for i in self.user_groups]
+        batch_lst = [i*10 for i in batch_lst]
 
         # 计算每个设备的计算时延
         # return [self.flops[-1] / self.compute_list[i] if self.fl_lst[i] == 1 else 0 for i in range(len(self.fl_lst))], \
@@ -463,6 +465,9 @@ class Algo:
         """
         if batch_lst is None:
             batch_lst = [len(i) for i in self.user_groups]
+
+        batch_lst = [i*10 for i in batch_lst]
+
         # FL用户的带宽率是每个用户自己拥有的，sl的带宽率是属于共享的，只是多个副本
         flr, slr = [self.fl_band_ratio[i] * (1 - self.b0) if self.fl_lst[i] == 1 else 0 for i in
                     range(len(self.fl_lst))], \

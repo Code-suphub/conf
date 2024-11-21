@@ -104,7 +104,7 @@ if __name__ == '__main__':
     global_model.to(device)
     global_model.train()
     res =[] # 最后的结果保存，【
-    cut_layer = 0
+    cut_layer = 1
     rho2 = 10
 
     file_name,args = get_file_name(args,"SL")

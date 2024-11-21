@@ -83,9 +83,11 @@ if __name__ == '__main__':
 
     base_file_name = "../save/output/conference/cmpResult/rho/"
 
-    for rho in range(1,100):
+    start = int(input("rho_start:"))
+
+    for rho in range(1,10):
         res = ""
-        rho/=1000
+        rho/=10
         file_name = base_file_name + str(rho)+".csv"
 
         for epoch in tqdm(range(args.epochs)):
@@ -122,7 +124,7 @@ if __name__ == '__main__':
                 algo.update_partition(fl_lst,sl_lst)
                 ind = 0
                 # while True:
-                b0 = algo.binary_b0(True,False)
+                b0 = algo.binary_b0(True,True)
 
                 fld,sld = algo.cal_delay()
 

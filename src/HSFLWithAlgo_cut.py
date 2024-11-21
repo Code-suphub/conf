@@ -114,6 +114,7 @@ if __name__ == '__main__':
     global_model.to(device)
     global_model.train()
     res = []
+    cutlay_lst = [0]*3 + [1]*18
 
     file_name,args = common.get_file_name(args,"HSFLAlgoCut")
 
@@ -152,7 +153,7 @@ if __name__ == '__main__':
             ind = 0
             algo.cutlayer_lst = [2 for i in range(len(fl_lst))]
             # b0 = algo.binary_b0(False,True)
-            b0 = algo.binary_b0(True,False)
+            b0 = algo.binary_b0(True,False, cutlay_lst= cutlay_lst)
             fld,sld = algo.cal_delay()
 
             # a = max(fld, sld)/sldUp

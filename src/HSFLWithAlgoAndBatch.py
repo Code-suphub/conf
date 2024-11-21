@@ -102,15 +102,17 @@ if __name__ == '__main__':
         global_model.train()
         decisionLst = []
 
-        while True:
-            # 进行随机初始化fl和sl的，尽量不出现全是sl的或者全是fl的
-            action_lst = [random.randint(0, 1) for _ in range(args.num_users)]
-            fl_lst = [1 if action_lst[i] == 1 else 0 for i in range(args.num_users)]
-            sl_lst = [1 if action_lst[i] == 0 else 0 for i in range(args.num_users)]  # 随机初始化两种学习方式的客户端
-            if sum(fl_lst) == 0 or sum(sl_lst) == 0:
-                continue
-            else:
-                break
+        # while True:
+        #     # 进行随机初始化fl和sl的，尽量不出现全是sl的或者全是fl的
+        #     action_lst = [random.randint(0, 1) for _ in range(args.num_users)]
+        #     fl_lst = [1 if action_lst[i] == 1 else 0 for i in range(args.num_users)]
+        #     sl_lst = [1 if action_lst[i] == 0 else 0 for i in range(args.num_users)]  # 随机初始化两种学习方式的客户端
+        #     if sum(fl_lst) == 0 or sum(sl_lst) == 0:
+        #         continue
+        #     else:
+        #         break
+        fl_lst = [0 for i in range(args.num_users)]
+        sl_lst = [1 for i in range(args.num_users)]  # 随机初始化两种学习方式的客户端
         algo = Algo(fl_lst, sl_lst, capacity, Bandwidth, signal_cap, model_param, activations, user_groups,
                     args, flops, compute_list, sample_size, pku,rho2)
         while True:
@@ -126,35 +128,36 @@ if __name__ == '__main__':
             G = 1000
 
             algo.batch_size_decision()
-            for local_optim in tqdm(range(G)):
-                old = (fl_lst[:], sl_lst[:])
-                fl_lst,sl_lst = common.generate_new_lst(fl_lst,sl_lst,args)
-                algo.update_partition(fl_lst, sl_lst)
-                ind = 0
-                b0 = algo.binary_b0(True, True)
-                fld, sld = algo.cal_delay(algo.batch_size_lst)
-                # print(fld, sld)
-                # ind+=1
-                # if ind>=gap_end:
-                #     print(fld,sld)
-                #     break
-
-                # a = max(fld, sld)/sldUp
-                # b = (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1))
-                a = max(fld, sld)
-                b = (sum(sl_lst) * (sum(sl_lst) - 1)) / rho
-                delay = max(fld, sld)
-                # ut_value_new = max(fld, sld)  - (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1)) #  归一化求解#  归一化求解
-                c = sum([1/xi/rho2 for xi in algo.batch_size_lst])
-                ut_value_new = a - b + c  # 归一化求解
-                # print("a: ",a,"  b: ",b,"  c: ",c)
-                ut_dif = ut_value_new - ut_value
-                epsilon = common.cal_epsilon(ut_dif)
-                if random.random() > epsilon:
-                    fl_lst, sl_lst = old  # 回滚
-                else:
-                    ut_value = ut_value_new
-                    total_delay = delay
+            # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
+            # for local_optim in tqdm(range(G)):
+            #     old = (fl_lst[:], sl_lst[:])
+            #     fl_lst,sl_lst = common.generate_new_lst(fl_lst,sl_lst,args)
+            #     algo.update_partition(fl_lst, sl_lst)
+            #     ind = 0
+            #     b0 = algo.binary_b0(True, True)
+            #     fld, sld = algo.cal_delay(algo.batch_size_lst)
+            #     # print(fld, sld)
+            #     # ind+=1
+            #     # if ind>=gap_end:
+            #     #     print(fld,sld)
+            #     #     break
+            #
+            #     # a = max(fld, sld)/sldUp
+            #     # b = (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1))
+            #     a = max(fld, sld)
+            #     b = (sum(sl_lst) * (sum(sl_lst) - 1)) / rho
+            #     delay = max(fld, sld)
+            #     # ut_value_new = max(fld, sld)  - (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1)) #  归一化求解#  归一化求解
+            #     c = sum([1/xi/rho2 for xi in algo.batch_size_lst])
+            #     ut_value_new = a - b + c  # 归一化求解
+            #     # print("a: ",a,"  b: ",b,"  c: ",c)
+            #     ut_dif = ut_value_new - ut_value
+            #     epsilon = common.cal_epsilon(ut_dif)
+            #     if random.random() > epsilon:
+            #         fl_lst, sl_lst = old  # 回滚
+            #     else:
+            #         ut_value = ut_value_new
+            #         total_delay = delay
 
             x = max(fld, sld)
             y = (sum(sl_lst) * (sum(sl_lst) - 1))/ rho
