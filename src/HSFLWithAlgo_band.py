@@ -80,7 +80,7 @@ if __name__ == '__main__':
     res = []
 
     file_name,args = common.get_file_name(args,"HSFLAlgoBand")
-    cutlay_lst = [0]*6 + [1]*15
+    cutlay_lst = [0]*8 + [1]*15
 
     for epoch in tqdm(range(args.epochs)):
         compute_list = compute_capacity_rand_generate(args.num_users)  # 获取每个用户的计算能力
@@ -100,7 +100,7 @@ if __name__ == '__main__':
                 break
         algo = Algo(fl_lst,sl_lst,capacity,Bandwidth,signal_cap,model_param,activations,user_groups,
                     args,flops,compute_list,sample_size,pku,rho2=10)
-        algo.cutlayer_lst = [0 for _ in range(len(fl_lst))]
+        algo.cutlayer_lst = cutlay_lst
         fld,sld = algo.cal_delay()
 
         local_optim = 0
@@ -135,6 +135,7 @@ if __name__ == '__main__':
 
         with open(f"../save/conferenceRes/ut_sigma{sigma}_1",'w') as f:
             json.dump(ut_lst,f)
+        total_delay = max(fld, sld)
         res.append([sum(sl_lst), total_delay])
         # continue
         ind = 0

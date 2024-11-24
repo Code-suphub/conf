@@ -181,7 +181,9 @@ if __name__ == '__main__':
             if a == 1:
                 print("FL：   ", idx, '----------------', algo.batch_size_lst[idx], '------------',len(sample_data[idx]), '--------------', len(user_groups))
                 local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                          idxs=sample_data[idx])
+                                          idxs=sample_data[idx],sign= True,
+                                          validData= user_groups[idx][int(0.8*len(user_groups[idx])):int(0.9*len(user_groups[idx]))],
+                                          testData= user_groups[idx][int(0.9*len(user_groups[idx])):int(len(user_groups[idx]))]),
                 w, loss = local_model.update_weights(
                     model=copy.deepcopy(global_model), global_round=epoch, local_losses=local_losses,
                     local_weights=local_weights)
@@ -193,7 +195,9 @@ if __name__ == '__main__':
             if a == 1:
                 print("SL：   ",idx, '----------------', algo.batch_size_lst[idx], '------------',len(sample_data[idx]), '--------------', len(user_groups))
                 local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                          idxs=sample_data[idx])
+                                          idxs=sample_data[idx],sign= True,
+                                          validData= user_groups[idx][int(0.8*len(user_groups[idx])):int(0.9*len(user_groups[idx]))],
+                                          testData= user_groups[idx][int(0.9*len(user_groups[idx])):int(len(user_groups[idx]))])
                 w, loss = local_model.update_weights(
                     model=copy.deepcopy(global_model), global_round=epoch, local_weights=local_weights,
                     local_losses=local_losses)
@@ -214,9 +218,11 @@ if __name__ == '__main__':
         # Calculate avg training accuracy over all users at every epoch
         list_acc, list_loss = [], []
         global_model.eval()
-        for c in range(args.num_users):
+        for idx in range(args.num_users):
             local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[c])
+                                      idxs=user_groups[idx],sign= True,
+                                          validData= user_groups[idx][int(0.8*len(user_groups[idx])):int(0.9*len(user_groups[idx]))],
+                                          testData= user_groups[idx][int(0.9*len(user_groups[idx])):int(len(user_groups[idx]))])
             acc, loss = local_model.inference(model=global_model)
             list_acc.append(acc)
             list_loss.append(loss)

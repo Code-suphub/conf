@@ -25,11 +25,15 @@ class DatasetSplit(Dataset):
 
 
 class LocalUpdate(object):
-    def __init__(self, args, dataset, idxs,sign = False):
+    def __init__(self, args, dataset, idxs,sign = False,validData= None,testData = None):
         self.args = args
         if sign :
             self.trainloader = DataLoader(DatasetSplit(dataset, list(idxs)),
                                  batch_size=self.args.local_bs, shuffle=True)
+            self.validloader = DataLoader(DatasetSplit(dataset, list(validData)),
+                                     batch_size=max(int(len(validData)/10), 1), shuffle=False)
+            self.testloader = DataLoader(DatasetSplit(dataset, list(testData)),
+                                    batch_size=max(int(len(testData)/10), 1), shuffle=False)
         else:
             self.trainloader, self.validloader, self.testloader = self.train_val_test(
                 dataset, list(idxs))
