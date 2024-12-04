@@ -113,6 +113,8 @@ class Algo:
         # self.sld = [t + j for t, j in zip(self.sltd, self.sljd)]  #
         # self.sldUp = sum(self.sld)  # 这里是计算上限时延，即所有用户都是SL用户，并且都是所有数据都在本地计算
 
+        self.batch_complier = 10
+
         # 下面是初始每个客户端的初始状态计算能力，通信能力和计算时延，通信时延
         self.fld, self.sld = self.cal_delay()
 
@@ -145,7 +147,7 @@ class Algo:
             fld, sld = self.cal_delay()
             if cut_:
                 # self.cut_decision(batch_lst)
-                self.cutlayer_lst = cutlay_lst if cutlay_lst!=None else  [0 if self.sl_lst[i]==1 else [-1000,-1000]  for i in range(self.user_num) ]
+                self.cutlayer_lst = cutlay_lst if cutlay_lst!=None else  [0 if self.sl_lst[i]==1 else self.cutlayer_lst[i]  for i in range(self.user_num) ]
             if band_:
                 self.bandwidth_with_delay_bin()
             fld, sld = self.cal_delay()
@@ -425,7 +427,7 @@ class Algo:
         self.bandwidth_lst = [band * (self.fl_bandwidth / bandwidth_sum) for band in self.bandwidth_lst]
         self.fl_band_ratio = [band / self.bandwidth_sum for band in bandwidth_lst]
 
-    def update_partition(self, fl_lst, sl_lst):
+    def update_partition(self, fl_lst, sl_lst,fl_band_ratio=None):
         """
         每次更新用户之后需要进行对象数据的更新，其中对象的不变量不需要更新，如计算能力
         而时变量需要更新，如计算能力，而计算能力是通过每个用户的带宽占比表征
@@ -436,15 +438,18 @@ class Algo:
         :param sl_lst:
         :return:
         """
-        self.fl_lst = fl_lst
-        self.sl_lst = sl_lst
-        self.fl_band_ratio = [1 / sum(self.fl_lst) if self.fl_lst[i] != 0 else 0 for i in range(len(self.fl_lst))]
-        self.cutlayer_lst = [1 for _ in range(self.args.num_users)]
+        self.fl_lst = fl_lst[:]
+        self.sl_lst = sl_lst[:]
+        if fl_band_ratio==None:
+            self.fl_band_ratio = [1 / sum(self.fl_lst) if self.fl_lst[i] != 0 else 0 for i in range(len(self.fl_lst))]
+        else:
+            self.fl_band_ratio =fl_band_ratio
+        # self.cutlayer_lst = [1 for _ in range(self.args.num_users)]
 
     def cal_compute_delay(self,batch_lst = None):
         if batch_lst is None:
             batch_lst = [len(i) for i in self.user_groups]
-        batch_lst = [i*10 for i in batch_lst]
+        batch_lst = [i*self.batch_complier for i in batch_lst]
 
         # 计算每个设备的计算时延
         # return [self.flops[-1] / self.compute_list[i] if self.fl_lst[i] == 1 else 0 for i in range(len(self.fl_lst))], \
@@ -458,6 +463,26 @@ class Algo:
              (self.flops[-1] - self.flops[self.cutlayer_lst[i]]) / self.compute_list[-1]) * batch_lst[i]
              if self.sl_lst[i] == 1 else 0 for i in range(len(self.sl_lst))]  # 每个客户端的计算时延 , sl 包含本地计算时延和服务器计算时延
 
+    def cal_commu_cap(self):
+        # FL用户的带宽率是每个用户自己拥有的，sl的带宽率是属于共享的，只是多个副本
+        flr, slr = [self.fl_band_ratio[i] * (1 - self.b0) if self.fl_lst[i] == 1 else 0 for i in
+                    range(len(self.fl_lst))], \
+            [self.b0 if self.sl_lst[i] == 1 else 0 for i in range(len(self.sl_lst))]  # 在rate中将不在本簇的用户置0
+
+        # 上行速率是每个的带宽计算得到
+        self.fl_uplink_cap, self.sl_uplink_cap = \
+            [self.cal_communication_capability(i, self.pku, flr[i] * self.Bandwidth) if self.fl_lst[i] == 1 else 0 for i
+             in range(len(self.fl_lst))], \
+                [self.cal_communication_capability(i, self.pku, slr[i] * self.Bandwidth) if self.sl_lst[i] == 1 else 0
+                 for i
+                 in range(len(self.sl_lst))]
+        # 下行速率对于FL而言使用广播带宽，对于SL而言使用的是各自的带宽使用
+        self.fl_download_cap, self.sl_download_cap = \
+            [self.cal_communication_capability(i, self.pkd, self.download_bandwidth)
+             if self.fl_lst[i] == 1 else 0 for i in range(self.args.num_users)], \
+                [self.cal_communication_capability(i, self.pkd, slr[i] * self.Bandwidth)
+                 if self.sl_lst[i] == 1 else 0 for i in range(self.args.num_users)]
+
     def cal_trans_delay(self,batch_lst = None):
         """
         :return: FL 上行时延、下行时延
@@ -466,91 +491,46 @@ class Algo:
         if batch_lst is None:
             batch_lst = [len(i) for i in self.user_groups]
 
-        batch_lst = [i*10 for i in batch_lst]
+        batch_lst = [i*self.batch_complier for i in batch_lst]
 
-        # FL用户的带宽率是每个用户自己拥有的，sl的带宽率是属于共享的，只是多个副本
-        flr, slr = [self.fl_band_ratio[i] * (1 - self.b0) if self.fl_lst[i] == 1 else 0 for i in
-                    range(len(self.fl_lst))], \
-                   [self.b0 if self.sl_lst[i] == 1 else 0 for i in range(len(self.sl_lst))]  # 在rate中将不在本簇的用户置0
-
-        # 上行速率是每个的带宽计算得到
-        fl_uplink_cap, self.sl_uplink_cap = \
-            [self.cal_communication_capability(i, self.pku, flr[i] * self.Bandwidth) if self.fl_lst[i] == 1 else 0 for i
-             in range(len(self.fl_lst))], \
-            [self.cal_communication_capability(i, self.pku, slr[i] * self.Bandwidth) if self.sl_lst[i] == 1 else 0 for i
-             in range(len(self.sl_lst))]
-        # 下行速率对于FL而言使用广播带宽，对于SL而言使用的是各自的带宽使用
-        fl_download_cap, self.sl_download_cap = \
-            [self.cal_communication_capability(i, self.pkd, self.download_bandwidth)
-             if self.fl_lst[i] == 1 else 0 for i in range(self.args.num_users)], \
-            [self.cal_communication_capability(i, self.pkd, slr[i]* self.Bandwidth)
-             if self.sl_lst[i] == 1 else 0 for i in range(self.args.num_users)]
-
-        # [(fl_band[i] * np.log2(1 + self.pkd * self.signal_cap[i] / (fl_band[i] * self.noise)))
-        #  .item() if self.fl_lst[i] == 1 else 0 for i in range(self.args.num_users)], \
-        # [(sl_band[i] * np.log2(1 + self.pkd * self.signal_cap[i] / (sl_band[i] * self.noise)))
-        #  .item() if self.sl_lst[i] == 1 else 0 for i in range(self.args.num_users)]
+        self.cal_commu_cap()
 
         # fl上行传输时延和下行传输时延都是直接模型参数总量除上对应的上下行速率即可
         # SL 上行传输时延是客户端侧模型+激活值/梯度值（这里的下行的梯度值直接使用激活值替代了）除以对应的上下行速率
         fl_uplink_trans_delay, fl_download_trans_delay, sl_uplink_trans_delay, sl_download_trans_delay = \
             [self.model_param[-1] / uc if self.fl_lst[i] != 0 else 0 for i, (uc, dc) in
-             enumerate(zip(fl_uplink_cap, fl_download_cap))], \
+             enumerate(zip(self.fl_uplink_cap, self.fl_download_cap))], \
             [self.model_param[-1] / dc if self.fl_lst[i] != 0 else 0 for i, (uc, dc) in
-             enumerate(zip(fl_uplink_cap, fl_download_cap))], \
+             enumerate(zip(self.fl_uplink_cap, self.fl_download_cap))], \
             [(self.model_param[self.cutlayer_lst[i]] +
-              self.activations[self.cutlayer_lst[i]][-1] * len(batch_lst)) / uc
+              self.activations[self.cutlayer_lst[i]][-1] * batch_lst[i]) / uc
              if self.sl_lst[i] != 0 else 0 for i, (uc, dc) in
              enumerate(zip(self.sl_uplink_cap, self.sl_download_cap))], \
             [(self.model_param[self.cutlayer_lst[i]] +
-              self.activations[self.cutlayer_lst[i]][-1] * len(batch_lst)) / dc
+              self.activations[self.cutlayer_lst[i]][-1] * batch_lst[i]) / dc
              if self.sl_lst[i] != 0 else 0 for i, (uc, dc) in
              enumerate(zip(self.sl_uplink_cap, self.sl_download_cap))]  # 每个客户端的通信时延,sl还有激活值的时延
 
         return fl_uplink_trans_delay, fl_download_trans_delay, sl_uplink_trans_delay, sl_download_trans_delay
 
-    def cal_sl_activation_trans_delay(self,batch_lst = None):
-        """
-        :return: FL 上行时延、下行时延
-                SL 上行时延，下行时延
-        """
-        if batch_lst is None:
-            batch_lst = [len(i) for i in self.user_groups]
-        flr, slr = [self.fl_band_ratio[i] * (1 - self.b0) if self.fl_lst[i] == 1 else 0 for i in
-                    range(len(self.fl_lst))], \
-                   [self.b0 if self.sl_lst[i] == 1 else 0 for i in range(len(self.sl_lst))]  # 在rate中将不在本簇的用户置0
-
-        self.sl_uplink_cap =[self.cal_communication_capability(i, self.pku, slr[i] * self.Bandwidth) if self.sl_lst[i] == 1 else 0 for i
-             in range(len(self.sl_lst))]
-        self.sl_download_cap = \
-            [self.cal_communication_capability(i, self.pkd, slr[i]* self.Bandwidth)
-             if self.sl_lst[i] == 1 else 0 for i in range(self.args.num_users)]
-
-        sl_activation_uplink_trans_delay, sl_activation_download_trans_delay,sl_other_download_trans_delay,sl_other_up_trans_delay = \
-            [(self.activations[self.cutlayer_lst[i]][-1] * len(batch_lst)) / uc
-             if self.sl_lst[i] != 0 else 0 for i, (uc, dc) in
-             enumerate(zip(self.sl_uplink_cap, self.sl_download_cap))], \
-            [(self.activations[self.cutlayer_lst[i]][-1] * len(batch_lst)) / dc
-             if self.sl_lst[i] != 0 else 0 for i, (uc, dc) in
-             enumerate(zip(self.sl_uplink_cap, self.sl_download_cap))], \
-            [(self.model_param[self.cutlayer_lst[i]]) / uc
-             if self.sl_lst[i] != 0 else 0 for i, (uc, dc) in
-             enumerate(zip(self.sl_uplink_cap, self.sl_download_cap))], \
-            [(self.model_param[self.cutlayer_lst[i]]) / dc
-             if self.sl_lst[i] != 0 else 0 for i, (uc, dc) in
-             enumerate(zip(self.sl_uplink_cap, self.sl_download_cap))]  # 每个客户端的通信时延,sl还有激活值的时延
-
-        return sl_activation_uplink_trans_delay, sl_activation_download_trans_delay,sl_other_download_trans_delay,sl_other_up_trans_delay
-
     def cal_delay(self,batch_size_lst = None):
-        fl_compute_delay, sl_compute_delay = self.cal_compute_delay(batch_size_lst)
-        self.fl_compute_delay, self.sl_compute_delay = fl_compute_delay, sl_compute_delay
-        fl_uplink_trans_delay, fl_download_trans_delay, sl_uplink_trans_delay, sl_download_trans_delay = self.cal_trans_delay(batch_size_lst)
-        self.fl_uplink_trans_delay, self.fl_download_trans_delay, self.sl_uplink_trans_delay, self.sl_download_trans_delay = fl_uplink_trans_delay, fl_download_trans_delay, sl_uplink_trans_delay, sl_download_trans_delay
+        self.fl_compute_delay, self.sl_compute_delay = self.cal_compute_delay(batch_size_lst)
+        self.fl_uplink_trans_delay, self.fl_download_trans_delay, self.sl_uplink_trans_delay, self.sl_download_trans_delay = self.cal_trans_delay(batch_size_lst)
 
-        fld, sld = [ut + dt + j for ut, dt, j in zip(fl_uplink_trans_delay, fl_download_trans_delay, fl_compute_delay)], \
-                   [ut + dt + j for ut, dt, j in zip(sl_uplink_trans_delay, sl_download_trans_delay, sl_compute_delay)]
+        fld, sld = [ut + dt + j for ut, dt, j in zip(self.fl_uplink_trans_delay, self.fl_download_trans_delay, self.fl_compute_delay)], \
+                   [ut + dt + j for ut, dt, j in zip(self.sl_uplink_trans_delay, self.sl_download_trans_delay, self.sl_compute_delay)]
         self.fld,self.sld = fld,sld
+
+
+        fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
+
+        if batch_size_lst is None:
+            batch_size_lst = [len(i) for i in self.user_groups]
+        batch_size_lst = [i*self.batch_complier for i in batch_size_lst]
+        # 计算时延的上界，就是所有设备都训练全部模型的情况下的时延
+        tau_f = max([fl_Tau_lst[i]*batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)])
+        tau_s = sum([sl_Tau_lst[i] *batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)])
+
         # 每个客户端的时延
         try:
             fld_mx, sld_s = max(fld), sum(sld)  # sl 是取总和，fl是取最大值
@@ -558,6 +538,34 @@ class Algo:
         except Exception as e:
             print(e)
             input("错误")
+
+    def cal_Tau_Gamma(self):
+        fl_Tau_lst = [self.flops[-1] / self.compute_list[i] if self.fl_lst[i] == 1 else 0 for i in range(self.user_num)]
+        # 对于SL 同样,每个tau都需要除上对应的batch_size_lst
+        sl_Tau_lst = [self.flops[self.cutlayer_lst[i]] / self.compute_list[i] +
+                      (self.flops[-1] - self.flops[self.cutlayer_lst[i]]) / self.compute_list[-1] +
+                      self.activations[self.cutlayer_lst[i]][-1] / self.sl_uplink_cap[i] +
+                      self.activations[self.cutlayer_lst[i]][-1] / self.sl_download_cap[i]
+                      if self.sl_lst[i] == 1 else 0 for i in range(self.user_num)]
+
+        fl_Gamma_lst = [self.model_param[-1] / self.fl_uplink_cap[i] + self.model_param[-1] / self.fl_download_cap[i] if
+                        self.fl_lst[i] == 1 else 0 for i in range(self.user_num)]
+        sl_Gamma_lst = [self.model_param[self.cutlayer_lst[i]] / self.sl_uplink_cap[i] +
+                        self.model_param[self.cutlayer_lst[i]] / self.sl_download_cap[i]
+                        if self.sl_lst[i] == 1 else 0 for i in range(self.user_num)]
+
+        return fl_Tau_lst,sl_Tau_lst,fl_Gamma_lst,sl_Gamma_lst
+
+    def cal_ut(self):
+        fld, sld = self.cal_delay(self.batch_size_lst)
+        x = max(fld, sld)
+        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) / self.rho
+        z = sum(
+            [1 / xi / self.rho2 for xi in self.batch_size_lst])
+        z2 = sum(
+            [1 / int(xi) / self.rho2 for xi in self.batch_size_lst])
+        withRoundUt =  x - y + z2
+        return x-y+z, x
 
     def cal_communication_capability(self, ind, p, bandwidth):
         """
@@ -567,80 +575,130 @@ class Algo:
         return bandwidth * math.log2(1 + p * self.signal_cap[ind] / (bandwidth * self.noise))
 
     def batch_size_init(self):
-        self.batch_size_lst = [1]*len(self.user_groups)
+        self.batch_size_lst = [len(i) for i in self.user_groups]
         self.lambda_lst = [0.1] *len(self.user_groups)
         self.mu = 0.1
 
     def batch_size_decision(self):
         # TODO rho2 暂定和rho1设定值相同
         # 如果这里的alpha_f很大，会导致第一次更新后lambda
-        alpha_f = 0.00001
-        alpha_s = 0.00001
+        alpha_f = 0.5
+        alpha_s = 0.5
         batch_min = 10
 
+        # 上行速率是每个的带宽计算得到
+        self.cal_commu_cap()
 
-        fl_computation_delay, sl_computation_delay = self.cal_compute_delay(self.batch_size_lst)
-        fl_up_trans_delay,fl_down_trans_delay,_,_ = self.cal_trans_delay(self.batch_size_lst)
-        sl_activation_uplink_trans_delay, sl_activation_download_trans_delay,sl_other_download_trans_delay,sl_other_up_trans_delay = self.cal_sl_activation_trans_delay(self.batch_size_lst)
+        # # 初始化所有的用户的batch_size为1
+        # self.batch_size_init()
+
         # xi的系数
         # 对于FL computation_delay = xi*C(模型参数量) / f_{k,t} , Gamma = C(模型参数量) / f_{k,t}
-        fl_Tau_lst = [d/b for d,b in zip(fl_computation_delay,self.batch_size_lst)]
-        # 对于SL 同样,每个tau都需要除上对应的batch_size_lst
-        sl_Tau_lst = [(a+b+c)/d for a,b,c,d in zip(sl_computation_delay,sl_activation_uplink_trans_delay,sl_activation_download_trans_delay,self.batch_size_lst)]
 
-        # 初始化所有的用户的batch_size为1
-        self.batch_size_init()
+        fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
+
         # 计算时延的上界，就是所有设备都训练全部模型的情况下的时延
-        tau_ub = [d*len(self.user_groups[i])/self.batch_size_lst[i] + fl_up_trans_delay[i]+fl_down_trans_delay[i] for i,d in enumerate(fl_computation_delay)]    # SL 的求和和 FL 单体的最大值
-        tau_ub.append(sum([(a+b+c)*len(self.user_groups[i])/d+ sl_other_up_trans_delay[i]+sl_other_download_trans_delay[i]
-                            for i,(a,b,c,d) in enumerate(zip(sl_computation_delay,sl_activation_uplink_trans_delay,sl_activation_download_trans_delay,self.batch_size_lst))]))
-        tau_ub = max(tau_ub)
-        tau_lb = [d / self.batch_size_lst[i] + fl_up_trans_delay[i] + fl_down_trans_delay[i]
-                  for i, d in enumerate(fl_computation_delay)]  # SL 的求和和 FL 单体的最大值
-        tau_lb.append(sum([(a + b + c)/ d + sl_other_up_trans_delay[i] +
-                           sl_other_download_trans_delay[i]
-                           for i, (a,b,c,d) in enumerate(
-                zip(sl_computation_delay, sl_activation_uplink_trans_delay, sl_activation_download_trans_delay,
-                    self.batch_size_lst))]))
-        tau_lb = max(tau_lb)# SL 的求和和 FL 单体的最大值
-        tau_star = 0
+        tau_ub = max([len(self.user_groups[i])*fl_Tau_lst[i] + fl_Gamma_lst[i] for i in range(self.user_num)])    # SL 的求和和 FL 单体的最大值
+        tau_ub = max([tau_ub, sum([len(self.user_groups[i])*sl_Tau_lst[i] + sl_Gamma_lst[i] for i in range(self.user_num)])])    # SL 的求和和 FL 单体的最大值
+
+
+
+        tau_lb = max([fl_Tau_lst[i] + fl_Gamma_lst[i] for i in range(self.user_num)])    # SL 的求和和 FL 单体的最大值
+        tau_lb = max(tau_lb, sum([sl_Tau_lst[i] + sl_Gamma_lst[i] for i in range(self.user_num)]))    # SL 的求和和 FL 单体的最大值
 
         tau_gap = 1 - sum(self.lambda_lst) - self.mu
 
         cnt = 0
+        ut_lst = []
+        tau = tau_ub
+        tau_f = max([fl_Tau_lst[i]*self.batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)])
+        tau_s = sum([sl_Tau_lst[i] *self.batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)])
+        tau_star = tau if abs(tau_gap) < 0.00001 else (
+            tau_ub if tau_gap > 0 else tau_lb
+        )
+        cnt = 1
 
-        while abs(tau_gap) > 0.001:
-            # 当前实际的tau值
-            tau = max([d + fl_up_trans_delay[i] + fl_down_trans_delay[i] for i, d in enumerate(fl_computation_delay)]
-                      + [sum([(a + b + c) + sl_other_up_trans_delay[i] +
-                              sl_other_download_trans_delay[i]
-                              for i, (a,b,c,d) in enumerate(
-                    zip(sl_computation_delay, sl_activation_uplink_trans_delay, sl_activation_download_trans_delay,
-                        self.batch_size_lst))])])  # SL 的求和和 FL 单体的最大值
+        fld, sld = self.cal_delay(self.batch_size_lst)
+        x = max(fld, sld)
+        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) / self.rho
+        z = sum(
+            [1 / xi / self.rho2 for xi in self.batch_size_lst])
+        ut_begin = x - y + z  # 归一化求解
+        batch_size_begin = self.batch_size_lst[:]
+
+        while abs(tau_gap) > 0.00000001 and cnt <60000:
+            # 防止陷入死循环，如果没有fl用户或者有fl用户但是最大的lambda就是0.00001（即所有lambda值都更新为最小值） 且 mu值都更新为最小值或者sl用户为空
+            # 如果这里出现了一千次，可以认定为收敛了
+            fld, sld = self.cal_delay(self.batch_size_lst)
+            x = max(fld, sld)
+            y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) / self.rho
+            z = sum(
+                [1 / xi / self.rho2 for xi in self.batch_size_lst])
+            ut_new_value = x - y + z  # 归一化求解
+            ut_lst.append((sum(self.batch_size_lst),tau_gap ,ut_new_value))
+            if ut_new_value>ut_begin:
+                self.batch_size_lst = batch_size_begin[:]
+            else:
+                ut_begin = ut_new_value
+                batch_size_begin = self.batch_size_lst[:]
+
+
+
+            cnt+=1
             # 计算当前的 batchsize 大小
             for i in range(len(self.user_groups)):
                 # 为了后续的正常训练，这里的batch_size最少是10
-                    self.batch_size_lst[i] = max(batch_min,min(math.sqrt(self.rho2/self.lambda_lst[i]/fl_Tau_lst[i]),len(self.user_groups[i])*0.8)) \
-                        if self.fl_lst[i]!=0 \
-                        else max(batch_min,min(math.sqrt(self.rho2/self.mu/sl_Tau_lst[i]),len(self.user_groups[i])*0.8))
+                if  self.fl_lst[i]==1:
+                    self.batch_size_lst[i] = max(1,
+                                                 min(len(self.user_groups[i]),
+                                                     math.sqrt(self.rho2/(self.lambda_lst[i]*fl_Tau_lst[i]))))
+                else:
+                    self.batch_size_lst[i] = max(1,
+                                                 min(len(self.user_groups[i]),
+                                                     math.sqrt(self.rho2 / (self.mu * sl_Tau_lst[i]))))
 
+
+            # self.lambda_lst = [max(0.00001,
+            #                        self.lambda_lst[i] + alpha_f*(fl_Tau_lst[i]*self.batch_size_lst[i]- tau_star)) if self.fl_lst[i]!=0 else 0 for i in range(self.user_num)]
+            # self.mu = max(0.00001,self.mu + alpha_s*(sum([sl_Tau_lst[i]*self.batch_size_lst[i] for i in range(self.user_num)]) - tau_star))
+
+
+            self.lambda_lst = [max(0.00001,
+                                   self.lambda_lst[i] + alpha_f*(fl_Tau_lst[i]*self.batch_size_lst[i]- tau_star)) if self.fl_lst[i]!=0 else self.lambda_lst[i] for i in range(self.user_num)]
+            self.mu = max(0.00001,self.mu + alpha_s*(sum([sl_Tau_lst[i]*self.batch_size_lst[i] for i in range(self.user_num)]) - tau_star))
+
+            # 当前实际的tau值，最后更新
+            tau_f = max([fl_Tau_lst[i]*self.batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)])
+            tau_s = sum([sl_Tau_lst[i] *self.batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)])
+            tau = max(max([fl_Tau_lst[i]*self.batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)]),
+                      sum([sl_Tau_lst[i] *self.batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)]))  # SL 的求和和 FL 单体的最大值
             tau_gap = 1 - sum(self.lambda_lst) - self.mu
             tau_star = tau if abs(tau_gap) < 0.00001 else (
                 tau_ub if tau_gap>0 else tau_lb
             )
 
-            self.lambda_lst = [max(0.00001,self.lambda_lst[i] + alpha_f*(fl_Tau_lst[i]*self.batch_size_lst[i]- tau_star)) if self.fl_lst[i]!=0 else 0 for i in range(self.user_num)]
-            self.mu = max(0.00001,self.mu + alpha_s*(sum([fl_Tau_lst[i]*self.batch_size_lst[i] for i in range(self.user_num)]) - tau_star))
-
             alpha_s-=0.0000000000000000001
             alpha_f-=0.0000000000000000001
 
-            # 防止陷入死循环，如果没有fl用户或者有fl用户但是最大的lambda就是0.00001（即所有lambda值都更新为最小值） 且 mu值都更新为最小值或者sl用户为空
-            # 如果这里出现了一千次，可以认定为收敛了
-            if ((max(self.lambda_lst)==0.00001 or sum(self.fl_lst)==0) and (self.mu == 0.00001 or sum(self.sl_lst)==0)) or  min(self.batch_size_lst)==batch_min or max(self.batch_size_lst) == max(self.user_groups):
-                cnt+=1
-                if cnt == 1000:
-                    break
+            if cnt == 20:
+                print()
 
-        # logger.debug("done")
+            # if ((max(self.lambda_lst)==0.00001 or sum(self.fl_lst)==0) and (self.mu == 0.00001 or sum(self.sl_lst)==0)) or  min(self.batch_size_lst)==batch_min or max(self.batch_size_lst) == max(self.user_groups):
+            #     break
+
+        fld, sld = self.cal_delay(self.batch_size_lst)
+        x = max(fld, sld)
+        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) / self.rho
+        z = sum(
+            [1 / xi / self.rho2 for xi in self.batch_size_lst])
+        ut_new_value = x - y + z  # 归一化求解
+
+        if ut_new_value > ut_begin:
+            self.batch_size_lst = batch_size_begin[:]
+        ut_lst.append((sum(self.batch_size_lst),tau_gap ,ut_new_value))
+        with open("../save/output/conference/cmpResult/sigma/batch/new_sigma_" + str(0.001) + ".csv", 'w') as f:
+            f.write("---".join([str(i) for i in ut_lst]))
+        print(ut_lst[-1])
+
+        logger.debug("done")
 

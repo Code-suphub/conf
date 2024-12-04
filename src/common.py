@@ -70,8 +70,7 @@ def model_get(args,train_dataset):
     return tempModel,global_model
 
 
-def cal_epsilon(ut_dif):
-    sigma = 0.00075
+def cal_epsilon(ut_dif, sigma = 0.00075):
     try:
         epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
     except:
@@ -111,7 +110,7 @@ def cal_epsilon(ut_dif):
 
     return epsilon
 
-rho = 0.01
+rho = 500
 rho2 = 0.1
 def get_rho():
     return rho,rho2
@@ -132,3 +131,13 @@ def generate_new_lst(fl_lst,sl_lst,args):
         if sl_lst[randon_exchange_sl] == 1:
             fl_lst[randon_exchange_fl], sl_lst[randon_exchange_fl] = 1, 0
     return fl_lst,sl_lst
+
+
+# sigma_lst = [1,0.1,0.01,0.001,0.0001,0.00001,0.000001]
+sigma_lst = [100,10,1,0.1,0.01,0.001]
+# sigma_lst = [10,1,0.1,0.01,0.001,0.0001,0.00001,0.000001]
+# sigma_lst = [10,1,0.1,0.01,0.001,0.0001,0.00001,0.000001]
+# sigma_lst = [1,0.1,0.001,0.0001,0.00001]
+rho_lst = [100,300,500,700,900,1100]
+# rho_base = len(rho_lst)
+# sigma_lst = [10,100,1000,10000,100000]

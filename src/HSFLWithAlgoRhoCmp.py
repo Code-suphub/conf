@@ -27,67 +27,63 @@ from alog import Algo
 rho, rho2 = common.get_rho()
 
 if __name__ == '__main__':
-    os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-    start_time = time.time()
+    for rho in common.rho_lst:
+        os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+        start_time = time.time()
 
-    # define paths
-    path_project = os.path.abspath('..')
-    sigma = 0.00075
+        # define paths
+        path_project = os.path.abspath('..')
+        sigma = 0.00075
 
-    common.train_seed()
-    args = args_parser()
-    exp_details(args)
-    args.epochs = 70
-    div = 1  # 7 和 17
-    print("div: ",div)
+        common.train_seed()
+        args = args_parser()
+        exp_details(args)
+        args.epochs = 200
+        div = 1  # 7 和 17
+        print("div: ",div)
 
-    device = 'cuda' if args.gpu else 'cpu'
+        device = 'cuda' if args.gpu else 'cpu'
 
-    # load dataset and user groups
-    train_dataset, test_dataset, user_groups = get_dataset(args)
-    user_groups = shard_num_generate(args.num_users,len(train_dataset))
-    # BUILD MODEL
-    global_model,tempModel = common.model_get(args,train_dataset)
+        # load dataset and user groups
+        train_dataset, test_dataset, user_groups = get_dataset(args)
+        user_groups = shard_num_generate(args.num_users,len(train_dataset))
+        # BUILD MODEL
+        global_model,tempModel = common.model_get(args,train_dataset)
 
-    # Set the model to train and send it to device.
-    print(global_model)
+        # Set the model to train and send it to device.
+        print(global_model)
 
-    # copy weights
-    global_weights = global_model.state_dict()
+        # copy weights
+        global_weights = global_model.state_dict()
 
-    # Training
-    train_loss, train_accuracy = [], []
-    val_acc_list, net_list = [], []
-    cv_loss, cv_acc = [], []
-    print_every = 1
-    val_loss_pre, counter = 0, 0
+        # Training
+        train_loss, train_accuracy = [], []
+        val_acc_list, net_list = [], []
+        cv_loss, cv_acc = [], []
+        print_every = 1
+        val_loss_pre, counter = 0, 0
 
-    """
-    每一轮训练开始阶段，随机初始化每个客户端的训练行为a_k,t,
-        训练开始之后，通过二分搜索找到b_0,t,(先假定FL共同的带宽用来传输所有的数据，即FL的时延由计算能力最慢的设备决定，同时SL未优化分割层在第2层/第一层）
-            对于SL用户，得到了b_0,t  ,那么只需要优化分割层
-            对于FL 用户，得到了b_0,t 只需要优化每个FL用户的带宽分配  训练开始之后，通过gibbs算法结合二分时间搜索获取带宽和x_k
-        然后通过gibbs进行用户训练行为的更改
-    """
+        """
+        每一轮训练开始阶段，随机初始化每个客户端的训练行为a_k,t,
+            训练开始之后，通过二分搜索找到b_0,t,(先假定FL共同的带宽用来传输所有的数据，即FL的时延由计算能力最慢的设备决定，同时SL未优化分割层在第2层/第一层）
+                对于SL用户，得到了b_0,t  ,那么只需要优化分割层
+                对于FL 用户，得到了b_0,t 只需要优化每个FL用户的带宽分配  训练开始之后，通过gibbs算法结合二分时间搜索获取带宽和x_k
+            然后通过gibbs进行用户训练行为的更改
+        """
 
-    sample = train_dataset[0][0]
-    sample_size = sample.shape[0] * sample.shape[1] * sample.shape[2]
-    with open("tempDate/activations", "r") as f:
-        activations = json.load(f)
-    with open("tempDate/flops", "r") as f:
-        flops = json.load(f)
-    with open("tempDate/model_param", "r") as f:
-        model_param = json.load(f)
-    global_model.to(device)
-    global_model.train()
+        sample = train_dataset[0][0]
+        sample_size = sample.shape[0] * sample.shape[1] * sample.shape[2]
+        with open("tempDate/activations", "r") as f:
+            activations = json.load(f)
+        with open("tempDate/flops", "r") as f:
+            flops = json.load(f)
+        with open("tempDate/model_param", "r") as f:
+            model_param = json.load(f)
+        global_model.to(device)
+        global_model.train()
 
-    base_file_name = "../save/output/conference/cmpResult/rho/"
-
-    start = int(input("rho_start:"))
-
-    for rho in range(1,10):
+        base_file_name = "../save/output/conference/cmpResult/rho/"
         res = ""
-        rho/=10
         file_name = base_file_name + str(rho)+".csv"
 
         for epoch in tqdm(range(args.epochs)):
@@ -124,7 +120,7 @@ if __name__ == '__main__':
                 algo.update_partition(fl_lst,sl_lst)
                 ind = 0
                 # while True:
-                b0 = algo.binary_b0(True,True)
+                # b0 = algo.binary_b0(True,True)
 
                 fld,sld = algo.cal_delay()
 
@@ -141,7 +137,58 @@ if __name__ == '__main__':
                     ut_value = ut_value_new
                     total_delay = delay
 
-            res+= f"{sum(algo.sl_lst)},{total_delay}\n"
+            for idx, a in enumerate(fl_lst):
+                if a == 1:
+                    print(idx, '----------------', len(user_groups[idx]), '--------------', len(user_groups))
+                    local_model = LocalUpdate(args=args, dataset=train_dataset,
+                                              idxs=user_groups[idx])
+                    w, loss = local_model.update_weights(
+                        model=copy.deepcopy(global_model), global_round=epoch, local_losses=local_losses,
+                        local_weights=local_weights)
+                    local_weights[ind] = copy.deepcopy(w)
+                    local_losses[ind] = copy.deepcopy(loss)
+                    ind += 1
+
+            for idx, a in enumerate(sl_lst):
+                if a == 1:
+                    print(idx, '----------------', len(user_groups[idx]), '--------------', len(user_groups))
+                    local_model = LocalUpdate(args=args, dataset=train_dataset,
+                                              idxs=user_groups[idx])
+                    w, loss = local_model.update_weights(
+                        model=copy.deepcopy(global_model), global_round=epoch, local_weights=local_weights,
+                        local_losses=local_losses)
+                    local_weights[ind] = copy.deepcopy(w)
+                    local_losses[ind] = copy.deepcopy(loss)
+                    global_model.load_state_dict(w)
+                    ind += 1
+
+            # update global weights
+            global_weights = average_weights(local_weights)
+
+            # update global weights
+            global_model.load_state_dict(global_weights)
+
+            loss_avg = sum(local_losses) / len(local_losses)
+            train_loss.append(loss_avg)
+
+            # Calculate avg training accuracy over all users at every epoch
+            list_acc, list_loss = [], []
+            global_model.eval()
+            for c in range(args.num_users):
+                local_model = LocalUpdate(args=args, dataset=train_dataset,
+                                          idxs=user_groups[c])
+                acc, loss = local_model.inference(model=global_model)
+                list_acc.append(acc)
+                list_loss.append(loss)
+            train_accuracy.append(sum(list_acc) / len(list_acc))
+
+            # print global training loss after every 'i' rounds
+            if (epoch + 1) % print_every == 0:
+                print(f' \nAvg Training Stats after {epoch + 1} global rounds:')
+                print(f'Training Loss : {np.mean(np.array(train_loss))}')
+                print('Train Accuracy: {:.2f}% \n'.format(100 * train_accuracy[-1]))
+
+            res+= f"{sum(algo.sl_lst)},{total_delay},{train_accuracy[-1]}\n"
             with open(file_name,'w') as f:
                 f.write(res)
 

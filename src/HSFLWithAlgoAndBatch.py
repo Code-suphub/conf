@@ -115,6 +115,7 @@ if __name__ == '__main__':
         sl_lst = [1 for i in range(args.num_users)]  # 随机初始化两种学习方式的客户端
         algo = Algo(fl_lst, sl_lst, capacity, Bandwidth, signal_cap, model_param, activations, user_groups,
                     args, flops, compute_list, sample_size, pku,rho2)
+        ut_lst = []
         while True:
             # 这个 for 循环是为了通过轮询的方式解决分别解决P1 和 P2
             fld, sld = algo.cal_delay(algo.batch_size_lst)
@@ -123,41 +124,40 @@ if __name__ == '__main__':
 
             ut_value = max(fld, sld) - (sum(sl_lst) * (sum(sl_lst) - 1)) / rho + sum([1/xi/rho2 for xi in algo.batch_size_lst])   # 归一化求解
             total_delay = max(fld, sld)
-            ut_lst = []
-            ut_lst_lst = []
             G = 1000
+            ut_G_lst = []
 
             algo.batch_size_decision()
             # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
-            # for local_optim in tqdm(range(G)):
-            #     old = (fl_lst[:], sl_lst[:])
-            #     fl_lst,sl_lst = common.generate_new_lst(fl_lst,sl_lst,args)
-            #     algo.update_partition(fl_lst, sl_lst)
-            #     ind = 0
-            #     b0 = algo.binary_b0(True, True)
-            #     fld, sld = algo.cal_delay(algo.batch_size_lst)
-            #     # print(fld, sld)
-            #     # ind+=1
-            #     # if ind>=gap_end:
-            #     #     print(fld,sld)
-            #     #     break
-            #
-            #     # a = max(fld, sld)/sldUp
-            #     # b = (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1))
-            #     a = max(fld, sld)
-            #     b = (sum(sl_lst) * (sum(sl_lst) - 1)) / rho
-            #     delay = max(fld, sld)
-            #     # ut_value_new = max(fld, sld)  - (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1)) #  归一化求解#  归一化求解
-            #     c = sum([1/xi/rho2 for xi in algo.batch_size_lst])
-            #     ut_value_new = a - b + c  # 归一化求解
-            #     # print("a: ",a,"  b: ",b,"  c: ",c)
-            #     ut_dif = ut_value_new - ut_value
-            #     epsilon = common.cal_epsilon(ut_dif)
-            #     if random.random() > epsilon:
-            #         fl_lst, sl_lst = old  # 回滚
-            #     else:
-            #         ut_value = ut_value_new
-            #         total_delay = delay
+            for local_optim in tqdm(range(G)):
+                old = (fl_lst[:], sl_lst[:])
+                fl_lst,sl_lst = common.generate_new_lst(fl_lst,sl_lst,args)
+                algo.update_partition(fl_lst, sl_lst)
+                ind = 0
+                b0 = algo.binary_b0(True, True)
+                fld, sld = algo.cal_delay(algo.batch_size_lst)
+                # print(fld, sld)
+                # ind+=1
+                # if ind>=gap_end:
+                #     print(fld,sld)
+                #     break
+
+                # a = max(fld, sld)/sldUp
+                # b = (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1))
+                a = max(fld, sld)
+                b = (sum(sl_lst) * (sum(sl_lst) - 1)) / rho
+                delay = max(fld, sld)
+                # ut_value_new = max(fld, sld)  - (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1)) #  归一化求解#  归一化求解
+                c = sum([1/xi/rho2 for xi in algo.batch_size_lst])
+                ut_value_new = a - b + c  # 归一化求解
+                # print("a: ",a,"  b: ",b,"  c: ",c)
+                ut_dif = ut_value_new - ut_value
+                epsilon = common.cal_epsilon(ut_dif)
+                if random.random() > epsilon:
+                    fl_lst, sl_lst = old  # 回滚
+                else:
+                    ut_value = ut_value_new
+                    total_delay = delay
 
             x = max(fld, sld)
             y = (sum(sl_lst) * (sum(sl_lst) - 1))/ rho
@@ -165,10 +165,13 @@ if __name__ == '__main__':
                 [1 / xi / rho2 for xi in algo.batch_size_lst])
             ut_new_value = x-y+z  # 归一化求解
 
-            if abs(ut_new_value-ut_value)<0.00001 or cnt > 50:
+            if cnt > 50:
                 break
             ut_value = ut_new_value
             cnt+=1
+            ut_lst.append(ut_value)
+        with open("../save/output/conference/midRes/ut/algoWithBatch.csv",'w') as f:
+            f.write(",".join([str(i) for i in ut_lst]))
         fld, sld = algo.cal_delay(algo.batch_size_lst)
 
         res.append([sum(sl_lst), max(fld, sld)])
