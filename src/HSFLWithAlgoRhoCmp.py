@@ -24,7 +24,7 @@ from random_generate import compute_capacity_rand_generate
 from scipy.special import lambertw
 from alog import Algo
 
-rho, rho2 = common.get_rho()
+rho, rho2,alpha = common.get_rho()
 rho2 = 500
 # rho = 0.0001
 # rho = 0.001
@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     # load dataset and user groups
     train_dataset, test_dataset, user_groups = get_dataset(args)
-    user_groups = shard_num_generate(args.num_users,len(train_dataset))
+    user_groups = shard_num_generate(np.array(train_dataset.targets), alpha ,args.num_users)
     # BUILD MODEL
     global_model,tempModel = common.model_get(args,train_dataset)
 

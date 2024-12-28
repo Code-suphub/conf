@@ -18,6 +18,9 @@ from param_cal import cal_model_param, cal_uplink_rate, cal_model_activation, ca
 from random_generate import compute_capacity_rand_generate
 from scipy.special import lambertw
 from alog import Algo
+import common
+
+rho,rho2,alpha = common.get_rho()
 
 if __name__ == '__main__':
     if True:
@@ -47,7 +50,7 @@ if __name__ == '__main__':
 
         # load dataset and user groups
         train_dataset, test_dataset, user_groups = get_dataset(args)
-        user_groups = shard_num_generate(args.num_users,len(train_dataset))
+        user_groups = shard_num_generate(np.array(train_dataset.targets), alpha ,args.num_users)
 
         # BUILD MODEL
         if args.model == 'cnn':
@@ -107,7 +110,7 @@ if __name__ == '__main__':
     cut_layer = 1
     rho2 = 10
 
-    file_name,args = get_file_name(args,"SL")
+    file_name,args = get_file_name(args,"SL",alpha = alpha)
 
     for epoch in tqdm(range(args.epochs)):
         sl_lst = [1]*args.num_users

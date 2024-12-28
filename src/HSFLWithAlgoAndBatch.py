@@ -23,7 +23,7 @@ from scipy.special import lambertw
 from alog import Algo
 import common
 
-rho, rho2 = common.get_rho()
+rho, rho2,alpha = common.get_rho()
 # rho = 500
 # rho2 = 0.00000001
 # rho2 = 0.00000005
@@ -46,7 +46,7 @@ rho, rho2 = common.get_rho()
 # rho2 = 10
 # rho2 = 50
 # rho2 = 100
-rho2 = 500
+# rho2 = 500
 # rho2 = 1000
 # rho2 = 1500
 # rho2 = 2000
@@ -70,7 +70,7 @@ rho2 = 500
 # rho2 = 100000
 # rho2 = 500000
 # rho2 = 1000000
-# rho2 = 5000000
+# rho2 = 5000000k
 
 if __name__ == '__main__':
     if True:
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
         # load dataset and user groups
         train_dataset, test_dataset, user_groups = get_dataset(args)
-        user_groups = shard_num_generate(args.num_users,len(train_dataset))
+        user_groups = shard_num_generate(np.array(train_dataset.targets), alpha ,args.num_users)
         # BUILD MODEL
         global_model,tempModel = common.model_get(args,train_dataset)
 
@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     res = [] # 最终保存结果的地方
 
-    file_name,args = common.get_file_name(args,"AlgoWithBatch",f"__rho2[{rho2}]")
+    file_name,args = common.get_file_name(args,"AlgoWithBatch",f"__rho2[{rho2}]",alpha)
 
     td = ""
     sumT=0

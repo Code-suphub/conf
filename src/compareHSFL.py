@@ -24,6 +24,8 @@ from param_cal import cal_model_param, cal_uplink_rate, cal_model_activation, ca
 from random_generate import compute_capacity_rand_generate
 from scipy.special import lambertw
 
+rho,rho2,alpha = common.get_rho()
+
 if __name__ == '__main__':
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
     start_time = time.time()
@@ -52,7 +54,7 @@ if __name__ == '__main__':
 
     # load dataset and user groups
     train_dataset, test_dataset, user_groups = get_dataset(args)
-    user_groups = shard_num_generate(args.num_users,len(train_dataset))
+    user_groups = shard_num_generate(np.array(train_dataset.targets), alpha ,args.num_users)
 
     # BUILD MODEL
     if args.model == 'cnn':
@@ -115,7 +117,7 @@ if __name__ == '__main__':
     cutlay_lst = [0]*20
 
 
-    file_name,args = common.get_file_name(args,"CHSFL")
+    file_name,args = common.get_file_name(args,"CHSFL",alpha = alpha)
 
     for epoch in tqdm(range(args.epochs)):
         compute_list = compute_capacity_rand_generate(args.num_users)  # 获取每个用户的计算能力
