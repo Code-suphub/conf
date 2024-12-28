@@ -8,7 +8,7 @@ delayLstAvg = []
 totalRound = []
 for rho in rho_lst:
     try:
-        with open("../save/output/conference/cmpResult/rho/" + str(rho) + ".csv", 'r') as f:
+        with open("../save/output/conference/cmpResult/rho/cnt[1]_user30_" + str(rho) + ".csv", 'r') as f:
             res=  [i.split(",") for i in f.read().split("\n")][:-1]
             slCnt =[]
             delaySum = []

@@ -80,7 +80,8 @@ if __name__ == '__main__':
     res = []
 
     file_name,args = common.get_file_name(args,"HSFLAlgoBand")
-    cutlay_lst = [0]*8 + [1]*15
+    # cutlay_lst = [0]*15 + [1]*15
+    cutlay_lst = [0]*20
 
     for epoch in tqdm(range(args.epochs)):
         compute_list = compute_capacity_rand_generate(args.num_users)  # 获取每个用户的计算能力
@@ -108,7 +109,7 @@ if __name__ == '__main__':
         ut_value = max(fld, sld) - (sum(sl_lst)*(sum(sl_lst)-1))/rho #  归一化求解
         total_delay = max(fld, sld)
         ut_lst = []
-        G = 1000
+        G = 200
         # for local_optim in range(G):
         for local_optim in tqdm(range(G)):
             old = (fl_lst[:],sl_lst[:])

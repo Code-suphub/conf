@@ -25,52 +25,7 @@ import common
 
 rho, rho2 = common.get_rho()
 # rho = 500
-# rho2 = 0.00000001
-# rho2 = 0.00000005
-# rho2 = 0.0000001
-# rho2 = 0.0000005
-# rho2 = 0.000001
-# rho2 = 0.000005
-# rho2 = 0.00001
-# rho2 = 0.00005
-# rho2 = 0.0001
-# rho2 = 0.0005
-# rho2 = 0.001
-# rho2 = 0.005
-# rho2 = 0.01
-# rho2 = 0.05
-# rho2 = 0.1
-# rho2 = 0.5
-# rho2 = 1
-# rho2 = 5
-# rho2 = 10
-# rho2 = 50
-# rho2 = 100
-rho2 = 500
-# rho2 = 1000
-# rho2 = 1500
-# rho2 = 2000
-# rho2 = 2500
-# rho2 = 3000
-# rho2 = 3500
-# rho2 = 4000
-# rho2 = 4500
-# rho2 = 5000
-# rho2 = 5500
-# rho2 = 6000
-# rho2 = 6500
-# rho2 = 7000
-# rho2 = 7500
-# rho2 = 8000
-# rho2 = 8500
-# rho2 = 9000
-# rho2 = 9500
-# rho2 = 10000
-# rho2 = 50000
-# rho2 = 100000
-# rho2 = 500000
-# rho2 = 1000000
-# rho2 = 5000000
+rho2 = 100000000
 
 if __name__ == '__main__':
     if True:
@@ -130,14 +85,15 @@ if __name__ == '__main__':
 
     res = [] # 最终保存结果的地方
 
-    file_name,args = common.get_file_name(args,"AlgoWithBatch",f"__rho2[{rho2}]")
+    file_name,args = common.get_file_name(args,"AlgoWithBatch",f"_withFixSL_rho2[{rho2}]")
 
     td = ""
     sumT=0
     cnt=0
-    args.epochs = 1000
     for epoch in tqdm(range(args.epochs)):
         t1 = time.time()
+        fl_lst = [0]*args.num_users
+        sl_lst = [1]*args.num_users
         compute_list = compute_capacity_rand_generate(args.num_users)  # 获取每个用户的计算能力
         capacity, signal_cap,Bandwidth,noise,pku = cal_uplink_rate(args.num_users)  # 获取每个用户的噪声和信号功率
         local_weights, local_losses = [0] * args.num_users, [0] * args.num_users
@@ -157,10 +113,7 @@ if __name__ == '__main__':
         #         break
         fl_lst = [0 for i in range(args.num_users)]
         sl_lst = [1 for i in range(args.num_users)]  # 随机初始化两种学习方式的客户端
-        for i in range(1,20,2):
-            sl_lst[i]=0
-            fl_lst[i]=1
-        algo = Algo(fl_lst[:], sl_lst[:], capacity, Bandwidth, signal_cap, model_param, activations, user_groups,
+        algo = Algo(fl_lst, sl_lst, capacity, Bandwidth, signal_cap, model_param, activations, user_groups,
                     args, flops, compute_list, sample_size, pku,rho2)
         algo.rho = rho
         algo.rho2 = rho2
@@ -171,33 +124,29 @@ if __name__ == '__main__':
 
             ut_value,total_delay = algo.cal_ut()  # 归一化求解
             # TODO 这里的G目前降低了，加速训练
-            G = 200
+            G = 5
             ut_G_lst = []
 
             algo.batch_size_decision(log=False)
             # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
-            for local_optim in range(G):
+            old_algo = copy.deepcopy(algo)
+            algo.update_partition(fl_lst, sl_lst)
+            ind = 0
+            b0 = algo.binary_b0(True, True)
+            ut_new_value,new_delay = algo.cal_ut()  # 归一化求解
 
-                fl_lst, sl_lst = common.generate_new_lst(fl_lst, sl_lst, args)
-
-                old_algo = copy.deepcopy(algo)
-                algo.update_partition(fl_lst[:], sl_lst[:])
-                ind = 0
-                b0 = algo.binary_b0(True, True)
-                ut_new_value,new_delay = algo.cal_ut()  # 归一化求解
-
-                # print("a: ",a,"  b: ",b,"  c: ",c)
-                ut_dif = ut_new_value - ut_value
-                epsilon = common.cal_epsilon(ut_dif)
-                if random.random() > epsilon:
-                    algo = copy.deepcopy(old_algo)
-                else:
-                    ut_value = ut_new_value
-                    total_delay = new_delay
+            # print("a: ",a,"  b: ",b,"  c: ",c)
+            ut_dif = ut_new_value - ut_value
+            epsilon = common.cal_epsilon(ut_dif)
+            if random.random() > epsilon:
+                algo = copy.deepcopy(old_algo)
+            else:
+                ut_value = ut_new_value
+                total_delay = new_delay
 
             ut_new_value, _ = algo.cal_ut()
 
-            if cnt > 25:
+            if cnt > 5:
                 break
             ut_value = ut_new_value
             cnt+=1

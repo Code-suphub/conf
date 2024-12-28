@@ -13,7 +13,7 @@ def compute_capacity_rand_generate(n: int) -> List[int]:
     使用[1,1.6]*10^9 cycles/s 的区间进行均匀分布生成，间隔100*10^6
     返回随机生成的结果
     """
-    base = 10 ** 10
+    base = 10 ** 8
     # kappa = 16 # 单位是cycles/FLOPs ，即计算一个FLOPs需要多少个计算周期
     kappa = 16 # 单位是cycles/FLOPs ，即计算一个FLOPs需要多少个计算周期
     dist = np.random.uniform(1, 9, n)
@@ -23,7 +23,7 @@ def compute_capacity_rand_generate(n: int) -> List[int]:
     div = 1
     # print("*"*20+str(div)+"*"*20)
     dist[idx]/=div
-    dist.append(500*base/kappa)  # 服务器的计算性能是普通客户端的五十倍
+    dist.append(50*base/kappa)  # 服务器的计算性能是普通客户端的五十倍
     return dist
 
 

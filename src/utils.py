@@ -90,29 +90,56 @@ def average_weights(w):
         w_avg[key] = torch.div(w_avg[key], len(w))
     return w_avg
 
-def shard_num_generate(n, base):
-    """
-    n:生成多少个用户的shard
-    base:中的数据量是多少
-    """
-    dist = np.random.normal(0, 1, n)  # 使用正态分布
-    mn = min(dist)
-    dist = [d - mn * (1 + n / 100) for d in dist]  # 加上最大值进行偏移， (n/100)是为了保证最小值不会太小
-    s = sum(dist)
-    dist = [d * base / s for d in dist]
-    dist = [int(round(d)) for d in dist] # 每个用户的shard数量进行取整
-    dist[-1] += base - sum(dist)  # 把多余的样本放到最后一个shard里面去
-    rand_lst = list(random.sample(range(base), base))
-    shard_lst = []
-    for d in dist:
-        shard_lst.append([])
-        for i in range(d):
-            if len(rand_lst)==0:
-                break
-            shard_lst[-1].append(rand_lst.pop())
-    print("每个用户的shard数量： ", dist)
-    # print("shard的分布： ", shard_lst)
-    return shard_lst
+def shard_num_generate(train_labels, alpha, n_clients):
+    '''
+    按照参数为alpha的Dirichlet分布将样本索引集合划分为n_clients个子集
+    '''
+    n_classes = train_labels.max() + 1
+    # (K, N) 类别标签分布矩阵X，记录每个类别划分到每个client去的比例
+    label_distribution = np.random.dirichlet([alpha] * n_clients, n_classes)
+    # (K, ...) 记录K个类别对应的样本索引集合
+    class_idcs = [np.argwhere(train_labels == y).flatten()
+                  for y in range(n_classes)]
+
+    # 记录N个client分别对应的样本索引集合
+    client_idcs = [[] for _ in range(n_clients)]
+    for k_idcs, fracs in zip(class_idcs, label_distribution):
+        # np.split按照比例fracs将类别为k的样本索引k_idcs划分为了N个子集
+        # i表示第i个client，idcs表示其对应的样本索引集合idcs
+        for i, idcs in enumerate(np.split(k_idcs,
+                                          (np.cumsum(fracs)[:-1] * len(k_idcs)).
+                                                  astype(int))):
+            client_idcs[i] += [idcs]
+
+    client_idcs = [np.concatenate(idcs) for idcs in client_idcs]
+
+    client_idcs = [i.tolist() for i in client_idcs]
+
+    return client_idcs
+
+# def shard_num_generate(n, base):
+#     """
+#     n:生成多少个用户的shard
+#     base:中的数据量是多少
+#     """
+#     dist = np.random.normal(0, 1, n)  # 使用正态分布
+#     mn = min(dist)
+#     dist = [d - mn * (1 + n / 100) for d in dist]  # 加上最大值进行偏移， (n/100)是为了保证最小值不会太小
+#     s = sum(dist)
+#     dist = [d * base / s for d in dist]
+#     dist = [int(round(d)) for d in dist] # 每个用户的shard数量进行取整
+#     dist[-1] += base - sum(dist)  # 把多余的样本放到最后一个shard里面去
+#     rand_lst = list(random.sample(range(base), base))
+#     shard_lst = []
+#     for d in dist:
+#         shard_lst.append([])
+#         for i in range(d):
+#             if len(rand_lst)==0:
+#                 break
+#             shard_lst[-1].append(rand_lst.pop())
+#     print("每个用户的shard数量： ", dist)
+#     # print("shard的分布： ", shard_lst)
+#     return shard_lst
 
 
 def exp_details(args):

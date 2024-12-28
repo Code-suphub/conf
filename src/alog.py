@@ -1,7 +1,7 @@
 import math
-from bisect import bisect, bisect_left
 
 import numpy as np
+import torch
 from sympy import Float
 
 from utils import mySolve2
@@ -129,7 +129,7 @@ class Algo:
         self.sl_bandwidth, self.fl_bandwidth = self.b0 * self.Bandwidth, (1 - self.b0) * self.Bandwidth
         while True:
             """
-            二分搜索 b0 ，没问题 
+            二分搜索 b0 ，没问题
             b0:     二分搜索的 sl 客户带宽分配的结果值
             bu:     二分搜索的 sl 客户带宽分配的上界值，初始为全部带宽1
             bl:     二分搜索的 sl 客户带宽分配的上界值，初始为0
@@ -144,13 +144,13 @@ class Algo:
             """
             self.b0 = (bu + bd) / 2
             self.sl_bandwidth, self.fl_bandwidth = self.b0 * self.Bandwidth, (1 - self.b0) * self.Bandwidth
-            fld, sld = self.cal_delay()
+            fld, sld = self.cal_delay(self.batch_size_lst)
             if cut_:
-                # self.cut_decision(batch_lst)
-                self.cutlayer_lst = cutlay_lst if cutlay_lst!=None else  [0 if self.sl_lst[i]==1 else self.cutlayer_lst[i]  for i in range(self.user_num) ]
+                self.cut_decision(batch_lst)
+                # self.cutlayer_lst = cutlay_lst if cutlay_lst!=None else  [0 if self.sl_lst[i]==1 else self.cutlayer_lst[i]  for i in range(self.user_num) ]
             if band_:
                 self.bandwidth_with_delay_bin()
-            fld, sld = self.cal_delay()
+            fld, sld = self.cal_delay(self.batch_size_lst)
 
             if abs(fld - sld) < 0.003 or bu==bd:
                 break
@@ -198,8 +198,8 @@ class Algo:
         if sum(self.fl_lst) == 0:
             return
         # 计算当前的时延上界，为平均分配的时候的带宽，因为下行使用广播信道，所以下行时延不在优化范围内
-        fl_compute_delay, _ = self.cal_compute_delay()
-        fl_uplink_trans_delay, fl_download_trans_delay, _, _ = self.cal_trans_delay()
+        fl_compute_delay, _ = self.cal_compute_delay(self.batch_size_lst)
+        fl_uplink_trans_delay, fl_download_trans_delay, _, _ = self.cal_trans_delay(self.batch_size_lst)
         fl_non_uplink_delay = [dt + j for dt, j in zip(fl_download_trans_delay, fl_compute_delay)]
 
         fld = [(ut + j) for ut, j in zip(fl_non_uplink_delay, fl_uplink_trans_delay)]
@@ -359,8 +359,8 @@ class Algo:
 
         if sum(self.fl_lst)==0:
             return
-        fl_compute_delay, _ = self.cal_compute_delay()
-        fl_uplink_trans_delay, fl_download_trans_delay, _, _ = self.cal_trans_delay()
+        fl_compute_delay, _ = self.cal_compute_delay(self.batch_size_lst)
+        fl_uplink_trans_delay, fl_download_trans_delay, _, _ = self.cal_trans_delay(self.batch_size_lst)
         fl_non_uplink_delay = [dt + j for dt, j in zip(fl_download_trans_delay, fl_compute_delay)]
         fld = [(ut + j) * 10 for ut, j in zip(fl_non_uplink_delay, fl_uplink_trans_delay)]
         # fl 所有用户的时延上界就是
@@ -373,7 +373,7 @@ class Algo:
             t_upper_bound:     fl时延的上界，初始值均匀分配带宽时的fl时延最大值
             t_lower_bound:     fl时延下界，初始值为fl计算时延的最大值（如果没有通信时延，即约等于无线带宽）
             tm:     fl时延的中值
-            
+
             flc:    fl带宽，初始值为均匀分配
             fltd:   fl的通信时延
             fld:    fl的时延
@@ -438,6 +438,11 @@ class Algo:
         :param sl_lst:
         :return:
         """
+        for i in range(len(self.fl_lst)):
+            if self.fl_lst[i]==1 and sl_lst[i]==1:
+                self.cutlayer_lst[i]= 1
+            elif self.sl_lst[i]==1 and fl_lst[i]==1:
+                self.cutlayer_lst[i]=[-1000,-1000]
         self.fl_lst = fl_lst[:]
         self.sl_lst = sl_lst[:]
         if fl_band_ratio==None:
@@ -458,10 +463,28 @@ class Algo:
         #         if self.sl_lst[i] == 1 else 0 for i in range(len(self.sl_lst))]  # 每个客户端的计算时延 , sl 包含本地计算时延和服务器计算时延
         # 对于 fl 来说，是完整模型的计算量,上面的没有计算上当前设备的数据量，每个样本一个计算量
         # 对于 sl 来说，是1~cutlay为设备侧的计算量， cutlayer ~ L 是服务器测的计算量
-        return [self.flops[-1] / self.compute_list[i] * batch_lst[i] if self.fl_lst[i] == 1 else 0 for i in range(len(self.fl_lst))], \
-            [((self.flops[self.cutlayer_lst[i]] / self.compute_list[i]) +
-             (self.flops[-1] - self.flops[self.cutlayer_lst[i]]) / self.compute_list[-1]) * batch_lst[i]
-             if self.sl_lst[i] == 1 else 0 for i in range(len(self.sl_lst))]  # 每个客户端的计算时延 , sl 包含本地计算时延和服务器计算时延
+        res = [[],[]]
+        for i in range(len(self.sl_lst)):
+            try:
+                if self.fl_lst[i] == 1:
+                    res[0].append(self.flops[-1] / self.compute_list[i] * batch_lst[i])
+                else:
+                    res[0].append(0)
+
+                if self.sl_lst[i]==1:
+                    res[1].append(((self.flops[self.cutlayer_lst[i]] / self.compute_list[i]) +
+                 (self.flops[-1] - self.flops[self.cutlayer_lst[i]]) / self.compute_list[-1]) * batch_lst[i])
+                else:
+                    res[1].append(0) # 每个客户端的计算时延 , sl 包含本地计算时延和服务器计算时延
+
+            except Exception:
+                print("self.flops: ",self.flops)
+                print("self.cutlay_lst: ",self.cutlayer_lst)
+                print("self.compute_lst: ",self.compute_list)
+                print("i: ",i)
+                print("cut_i: ",self.cutlayer_lst[i])
+                print("sllst_i: ",self.sl_lst[i])
+        return res
 
     def cal_commu_cap(self):
         # FL用户的带宽率是每个用户自己拥有的，sl的带宽率是属于共享的，只是多个副本
@@ -514,6 +537,7 @@ class Algo:
         return fl_uplink_trans_delay, fl_download_trans_delay, sl_uplink_trans_delay, sl_download_trans_delay
 
     def cal_delay(self,batch_size_lst = None):
+
         self.fl_compute_delay, self.sl_compute_delay = self.cal_compute_delay(batch_size_lst)
         self.fl_uplink_trans_delay, self.fl_download_trans_delay, self.sl_uplink_trans_delay, self.sl_download_trans_delay = self.cal_trans_delay(batch_size_lst)
 
@@ -527,9 +551,11 @@ class Algo:
         if batch_size_lst is None:
             batch_size_lst = [len(i) for i in self.user_groups]
         batch_size_lst = [i*self.batch_complier for i in batch_size_lst]
+
         # 计算时延的上界，就是所有设备都训练全部模型的情况下的时延
         tau_f = max([fl_Tau_lst[i]*batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)])
-        tau_s = sum([sl_Tau_lst[i] *batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)])
+        tmp = [sl_Tau_lst[i] *batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)]
+        tau_s = sum(tmp)
 
         # 每个客户端的时延
         try:
@@ -542,11 +568,14 @@ class Algo:
     def cal_Tau_Gamma(self):
         fl_Tau_lst = [self.flops[-1] / self.compute_list[i] if self.fl_lst[i] == 1 else 0 for i in range(self.user_num)]
         # 对于SL 同样,每个tau都需要除上对应的batch_size_lst
-        sl_Tau_lst = [self.flops[self.cutlayer_lst[i]] / self.compute_list[i] +
-                      (self.flops[-1] - self.flops[self.cutlayer_lst[i]]) / self.compute_list[-1] +
+        sl_compute = [self.flops[self.cutlayer_lst[i]] / self.compute_list[i] +
+                      (self.flops[-1] - self.flops[self.cutlayer_lst[i]]) / self.compute_list[-1]
+                      if self.sl_lst[i] == 1 else 0 for i in range(self.user_num)]
+        sl_communicate = [
                       self.activations[self.cutlayer_lst[i]][-1] / self.sl_uplink_cap[i] +
                       self.activations[self.cutlayer_lst[i]][-1] / self.sl_download_cap[i]
                       if self.sl_lst[i] == 1 else 0 for i in range(self.user_num)]
+        sl_Tau_lst = [comp + commu for comp,commu in zip(sl_compute,sl_communicate)]
 
         fl_Gamma_lst = [self.model_param[-1] / self.fl_uplink_cap[i] + self.model_param[-1] / self.fl_download_cap[i] if
                         self.fl_lst[i] == 1 else 0 for i in range(self.user_num)]
@@ -556,14 +585,17 @@ class Algo:
 
         return fl_Tau_lst,sl_Tau_lst,fl_Gamma_lst,sl_Gamma_lst
 
-    def cal_ut(self):
-        fld, sld = self.cal_delay(self.batch_size_lst)
-        x = max(fld, sld)
+    def cal_ut(self,sign = True, old = 0):
+        if sign:
+            fld, sld = self.cal_delay(self.batch_size_lst)
+            x = max(fld, sld)
+        else:
+            x = old
         y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) / self.rho
         z = sum(
-            [1 / xi / self.rho2 for xi in self.batch_size_lst])
+            [self.rho2 / xi  for xi in self.batch_size_lst])
         z2 = sum(
-            [1 / int(xi) / self.rho2 for xi in self.batch_size_lst])
+            [self.rho2 / int(xi)  for xi in self.batch_size_lst])
         withRoundUt =  x - y + z2
         return x-y+z, x
 
@@ -579,11 +611,11 @@ class Algo:
         self.lambda_lst = [0.1] *len(self.user_groups)
         self.mu = 0.1
 
-    def batch_size_decision(self):
+    def batch_size_decision(self,log = True):
         # TODO rho2 暂定和rho1设定值相同
         # 如果这里的alpha_f很大，会导致第一次更新后lambda
-        alpha_f = 0.5
-        alpha_s = 0.5
+        alpha_f = 0.00005
+        alpha_s = 0.00005
         batch_min = 10
 
         # 上行速率是每个的带宽计算得到
@@ -626,21 +658,17 @@ class Algo:
         ut_begin = x - y + z  # 归一化求解
         batch_size_begin = self.batch_size_lst[:]
 
-        while abs(tau_gap) > 0.00000001 and cnt <60000:
+        # TODO 目前这里只有1000了，应该要大一点
+        while abs(tau_gap) > 0.000001 and cnt <1000:
             # 防止陷入死循环，如果没有fl用户或者有fl用户但是最大的lambda就是0.00001（即所有lambda值都更新为最小值） 且 mu值都更新为最小值或者sl用户为空
             # 如果这里出现了一千次，可以认定为收敛了
-            fld, sld = self.cal_delay(self.batch_size_lst)
-            x = max(fld, sld)
-            y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) / self.rho
-            z = sum(
-                [1 / xi / self.rho2 for xi in self.batch_size_lst])
-            ut_new_value = x - y + z  # 归一化求解
-            ut_lst.append((sum(self.batch_size_lst),tau_gap ,ut_new_value))
-            if ut_new_value>ut_begin:
-                self.batch_size_lst = batch_size_begin[:]
-            else:
-                ut_begin = ut_new_value
-                batch_size_begin = self.batch_size_lst[:]
+            ut_new_value,_ = self.cal_ut()
+            # if ut_new_value>=ut_begin:
+            #     self.batch_size_lst = batch_size_begin[:]
+            # else:
+            ut_begin = ut_new_value
+            batch_size_begin = self.batch_size_lst[:]
+            ut_lst.append((sum(self.batch_size_lst),tau_gap ,ut_begin))
 
 
 
@@ -649,13 +677,13 @@ class Algo:
             for i in range(len(self.user_groups)):
                 # 为了后续的正常训练，这里的batch_size最少是10
                 if  self.fl_lst[i]==1:
-                    self.batch_size_lst[i] = max(1,
-                                                 min(len(self.user_groups[i]),
-                                                     math.sqrt(self.rho2/(self.lambda_lst[i]*fl_Tau_lst[i]))))
+                    t = math.sqrt(self.rho2/(self.lambda_lst[i]*fl_Tau_lst[i]))
+                    t2 = len(self.user_groups[i]) * 0.8
+                    self.batch_size_lst[i] = max(10,min(t,t2))
                 else:
-                    self.batch_size_lst[i] = max(1,
-                                                 min(len(self.user_groups[i]),
-                                                     math.sqrt(self.rho2 / (self.mu * sl_Tau_lst[i]))))
+                    t = math.sqrt(self.rho2 / (self.mu * sl_Tau_lst[i]))
+                    t2 = len(self.user_groups[i]) * 0.8
+                    self.batch_size_lst[i] = max(10,min(t,t2))
 
 
             # self.lambda_lst = [max(0.00001,
@@ -672,33 +700,200 @@ class Algo:
             tau_s = sum([sl_Tau_lst[i] *self.batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)])
             tau = max(max([fl_Tau_lst[i]*self.batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)]),
                       sum([sl_Tau_lst[i] *self.batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)]))  # SL 的求和和 FL 单体的最大值
-            tau_gap = 1 - sum(self.lambda_lst) - self.mu
+            tau_gap = 1 - sum([self.lambda_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)]) - self.mu
             tau_star = tau if abs(tau_gap) < 0.00001 else (
-                tau_ub if tau_gap>0 else tau_lb
+                tau_ub if tau_gap<0 else tau_lb
             )
 
             alpha_s-=0.0000000000000000001
             alpha_f-=0.0000000000000000001
 
-            if cnt == 20:
-                print()
+            # if cnt == 20:
+                # print()
 
             # if ((max(self.lambda_lst)==0.00001 or sum(self.fl_lst)==0) and (self.mu == 0.00001 or sum(self.sl_lst)==0)) or  min(self.batch_size_lst)==batch_min or max(self.batch_size_lst) == max(self.user_groups):
             #     break
 
+        ut_new_value,_ = self.cal_ut()
+
+        # TODO 这里的和上面的判定是否需要呢
+        # if ut_new_value >= ut_begin:
+        #     self.batch_size_lst = batch_size_begin[:]
+        # else:
+        ut_begin = ut_new_value
+        batch_size_begin = self.batch_size_lst[:]
+        ut_lst.append((sum(self.batch_size_lst),tau_gap ,ut_begin))
+        if log:
+            with open("../save/output/conference/cmpResult/sigma/batch/new_new_new_sigma_" + str(0.001) + f"rho2_{self.rho2}.csv", 'w') as f:
+                f.write("---".join([str(i) for i in ut_lst]))
+        # print(ut_lst[-1])
+
+        # logger.debug("done")
+
+    def round(self):
+        ut_new_value, max_delay = self.cal_ut()
+
+        print("before round, ut value: ", ut_new_value)
+        batch_lst = []
+        for i in range(len(self.batch_size_lst)):
+            self.batch_size_lst[i] = int(self.batch_size_lst[i])
+            batch_lst.append((i, self.batch_size_lst[i]))
+
+        ut_new_value, _ = self.cal_ut()
+
+        print("after floor, ut value: ", ut_new_value)
+
         fld, sld = self.cal_delay(self.batch_size_lst)
-        x = max(fld, sld)
-        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) / self.rho
-        z = sum(
-            [1 / xi / self.rho2 for xi in self.batch_size_lst])
-        ut_new_value = x - y + z  # 归一化求解
+        while sld < max_delay:
+            sign = True
+            batch_lst.sort(key=lambda x: x[1])
+            for ind, batch_size in batch_lst:
+                self.batch_size_lst[ind] = batch_size
+                if sign and self.sl_lst[ind] != 0:
+                    self.batch_size_lst[ind] += 1
+                    sign = False
+            fld, sld = self.cal_delay(self.batch_size_lst)
 
-        if ut_new_value > ut_begin:
-            self.batch_size_lst = batch_size_begin[:]
-        ut_lst.append((sum(self.batch_size_lst),tau_gap ,ut_new_value))
-        with open("../save/output/conference/cmpResult/sigma/batch/new_sigma_" + str(0.001) + ".csv", 'w') as f:
-            f.write("---".join([str(i) for i in ut_lst]))
-        print(ut_lst[-1])
+        ut_new_value, _ = self.cal_ut()
+        print("after floor, ut value: ", ut_new_value)
 
-        logger.debug("done")
+    def generate_non_iid_dirichlet(self,trainset, num_datasets=20,alpha = 1):
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=len(trainset), shuffle=False)
+
+        # 获取数据和标签
+        data, labels = next(iter(trainloader))
+
+        # CIFAR-10有10个类别
+        num_classes = 10
+
+        # 狄利克雷分布的参数（alpha向量），控制每个数据集中类别的分布
+        alpha = np.full(num_classes, alpha)  # 你可以调整这个值来观察不同的效果
+
+        # 初始化一个列表来存储每个数据集的索引和对应的数据、标签
+        datasets = []
+
+        # 为每个数据集生成狄利克雷分布的样本，并根据这些样本划分数据集
+        for i in range(num_datasets):
+            # 生成狄利克雷分布的样本
+            dirichlet_sample = np.random.dirichlet(alpha)
+
+            # 计算每个类别的样本数量（取整）
+            class_counts = np.round(dirichlet_sample * len(labels)).astype(int)
+
+            # 确保所有类别的样本数量之和不超过总样本数（处理取整导致的误差）
+            total_samples = sum(class_counts)
+            if total_samples > len(labels):
+                # 这里简单地通过按比例减少每个类别的样本来调整（这是一种启发式方法）
+                scale_factor = len(labels) / total_samples
+                class_counts = np.round(class_counts * scale_factor).astype(int)
+                # 如果仍然有误差（由于取整），则再次调整最后一个类别（或根据需要调整其他策略）
+                remaining_samples = len(labels) - sum(class_counts)
+                class_counts[-1] += remaining_samples
+
+            # 为每个类别生成索引并收集数据、标签
+            indices = []
+            dataset_data = []
+            dataset_labels = []
+            for cls, count in enumerate(class_counts):
+                class_indices = np.where(labels == cls)[0]
+                np.random.shuffle(class_indices)  # 打乱索引
+                indices.extend(class_indices[:count])
+                dataset_data.extend(data[class_indices[:count]])
+                dataset_labels.extend(labels[class_indices[:count]])
+
+            # 将数据、标签转换为tensor并添加到列表中
+            dataset_data = torch.tensor(dataset_data, dtype=torch.float32)
+            dataset_labels = torch.tensor(dataset_labels, dtype=torch.long)
+            datasets.append((dataset_data, dataset_labels))
+
+        return datasets
+#
+#
+# if __name__ == '__main__':
+#     # CIFAR-10有10个类别
+#     num_classes = 10
+#
+#     labels = []
+#     for i in range(10):
+#         labels += [i]*6000
+#
+#     # 设置要生成的数据集数量
+#     num_datasets = 30
+#
+#     # 狄利克雷分布的参数（alpha向量），控制每个数据集中类别的分布
+#     alpha = np.full(num_classes, 0.5)  # 你可以调整这个值来观察不同的效果
+#
+#     # 初始化一个列表来存储每个数据集的索引和对应的数据、标签
+#     datasets = []
+#
+#     # 为每个数据集生成狄利克雷分布的样本，并根据这些样本划分数据集
+#     for i in range(num_datasets):
+#         # 生成狄利克雷分布的样本
+#         dirichlet_sample = np.random.dirichlet(alpha)
+#
+#         # 计算每个类别的样本数量（取整）
+#         class_counts = np.round(dirichlet_sample * len(labels)).astype(int)
+#
+#         # 确保所有类别的样本数量之和不超过总样本数（处理取整导致的误差）
+#         total_samples = sum(class_counts)
+#         if total_samples > len(labels):
+#             # 这里简单地通过按比例减少每个类别的样本来调整（这是一种启发式方法）
+#             scale_factor = len(labels) / total_samples
+#             class_counts = np.round(class_counts * scale_factor).astype(int)
+#             # 如果仍然有误差（由于取整），则再次调整最后一个类别（或根据需要调整其他策略）
+#             remaining_samples = len(labels) - sum(class_counts)
+#             class_counts[-1] += remaining_samples
+#
+#         # 为每个类别生成索引并收集数据、标签
+#         indices = []
+#         dataset_data = []
+#         dataset_labels = []
+#         for cls, count in enumerate(class_counts):
+#             class_indices = np.where(labels == cls)[0]
+#             np.random.shuffle(class_indices)  # 打乱索引
+#             indices.extend(class_indices[:count])
+#             # dataset_data.extend(data[class_indices[:count]])
+#             # dataset_labels.extend(labels[class_indices[:count]])
+#
+#         # # 将数据、标签转换为tensor并添加到列表中
+#         # dataset_data = torch.tensor(dataset_data, dtype=torch.float32)
+#         # dataset_labels = torch.tensor(dataset_labels, dtype=torch.long)
+#         # datasets.append((dataset_data, dataset_labels))
+#         print(indices)
+
+if __name__ == '__main__':
+
+    import numpy as np
+
+
+    def dirichlet_split_noniid(train_labels, alpha, n_clients):
+        '''
+        按照参数为alpha的Dirichlet分布将样本索引集合划分为n_clients个子集
+        '''
+        n_classes = train_labels.max()+1
+        # (K, N) 类别标签分布矩阵X，记录每个类别划分到每个client去的比例
+        label_distribution = np.random.dirichlet([alpha]*n_clients, n_classes)
+        # (K, ...) 记录K个类别对应的样本索引集合
+        class_idcs = [np.argwhere(train_labels == y).flatten()
+                      for y in range(n_classes)]
+
+        # 记录N个client分别对应的样本索引集合
+        client_idcs = [[] for _ in range(n_clients)]
+        for k_idcs, fracs in zip(class_idcs, label_distribution):
+            # np.split按照比例fracs将类别为k的样本索引k_idcs划分为了N个子集
+            # i表示第i个client，idcs表示其对应的样本索引集合idcs
+            for i, idcs in enumerate(np.split(k_idcs,
+                                              (np.cumsum(fracs)[:-1]*len(k_idcs)).
+                                              astype(int))):
+                client_idcs[i] += [idcs]
+
+        client_idcs = [np.concatenate(idcs) for idcs in client_idcs]
+
+        return client_idcs
+
+    labels = [0,1,2,3,4,5,6,7,8,9,10]*6000
+    client_idcs = dirichlet_split_noniid(np.array(labels),10,30)
+    print([i.tolist() for i in client_idcs])
+    print([len(i.tolist()) for i in client_idcs])
+
 

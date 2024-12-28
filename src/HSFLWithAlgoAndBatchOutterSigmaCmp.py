@@ -24,7 +24,7 @@ from alog import Algo
 import common
 
 rho, rho2 = common.get_rho()
-rho2 = 10
+rho2 = 10000
 # rho = 500
 # rho2 = 10
 
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     sumT=0
     cnt=0
     sigma = 0.001
-    rho2 = 0.1
+    # rho2 = 0.1
     for epoch in tqdm(range(args.epochs)):
         t1 = time.time()
         fl_lst = [0]*args.num_users
@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
         # fl_lst = [0 for i in range(args.num_users)]
         # sl_lst = [1 for i in range(args.num_users)]  # 随机初始化两种学习方式的客户端
-        algo = Algo(fl_lst, sl_lst, capacity, Bandwidth, signal_cap, model_param, activations, user_groups,
+        algo = Algo(fl_lst[:], sl_lst[:], capacity, Bandwidth, signal_cap, model_param, activations, user_groups,
                     args, flops, compute_list, sample_size, pku,rho2)
         algo.rho = rho
         algo.rho2 = rho2
@@ -130,14 +130,15 @@ if __name__ == '__main__':
 
             local_optim = 0
 
-            G = 200
+            G = 5
             ut_G_lst = []
 
             algo.batch_size_decision()
-
             ut_value,total_delay = algo.cal_ut()
             # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
+            b0 = algo.binary_b0(True, True)
             for local_optim in tqdm(range(G)):
+                fld, sld = algo.cal_delay(algo.batch_size_lst)
                 ut_new_ = algo.cal_ut()  # 归一化求解
                 if ut_new_[0]!=ut_value:
                     print(ut_new_[0],ut_value)
@@ -149,14 +150,13 @@ if __name__ == '__main__':
                 algo.update_partition(fl_lst[:], sl_lst[:])
                 ind = 0
                 b0 = algo.binary_b0(True, True)
-
                 ut_new_value,new_delay = algo.cal_ut()  # 归一化求解
 
                 # print("a: ",a,"  b: ",b,"  c: ",c)
                 ut_dif = ut_new_value - ut_value
                 epsilon = common.cal_epsilon(ut_dif,sigma = sigma)
                 cur = random.random()
-                if local_optim == G-1:
+                if local_optim == G-2:
                     a=1
                 if cur > epsilon:
                     # TODO 更改其他算法部分的这里，保证算法的优越性
@@ -167,14 +167,44 @@ if __name__ == '__main__':
                     ut_value = ut_new_value
                     total_delay = new_delay
 
-            ut_new_value,_ = algo.cal_ut()
+            ut_new_value, _ = algo.cal_ut()
 
-            # if cnt > 50:
-            #     break
+            if cnt > 25:
+                break
             ut_value = ut_new_value
-            cnt+=1
+            cnt += 1
             ut_lst.append((ut_value,sum(algo.batch_size_lst)))
             with open("../save/output/conference/cmpResult/sigma/outter/new_sigma_" + str(sigma) + f"_rho2_{rho2}.csv", 'w') as f:
             # with open("../save/output/conference/cmpResult/sigma/outter/with_sigma_" + str(sigma) + ".csv", 'w') as f:
                 f.write("---".join([str(i) for i in ut_lst]))
+        ut_new_value, max_delay = algo.cal_ut()
+
+        print("before round, ut value: ", ut_new_value)
+        batch_lst = []
+        for i in range(len(algo.batch_size_lst)):
+            algo.batch_size_lst[i] = int(algo.batch_size_lst[i])
+            batch_lst.append([i, algo.batch_size_lst[i]])
+
+        ut_new_value, _ = algo.cal_ut(sign=False, old=max_delay)
+
+        print("after floor, ut value: ", ut_new_value)
+
+        fld, sld = algo.cal_delay(algo.batch_size_lst)
+        while sld < max_delay:
+            sign = True
+            batch_lst.sort(key=lambda x: x[1])
+            for ind, batch_size in batch_lst:
+                algo.batch_size_lst[ind] = batch_size
+                if sign and algo.sl_lst[ind] != 0:
+                    algo.batch_size_lst[ind] += 1
+                    batch_lst[ind][1] += 1
+                    sign = False
+            fld, sld = algo.cal_delay(algo.batch_size_lst)
+
+        ut_new_value, _ = algo.cal_ut(sign=False, old=max_delay)
+        print("after round, ut value: ", ut_new_value)
+
+        # if cnt > 50:
+        #     break
+        ut_value = ut_new_value
         break

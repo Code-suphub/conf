@@ -114,7 +114,8 @@ if __name__ == '__main__':
     global_model.to(device)
     global_model.train()
     res = []
-    cutlay_lst = [0]*5 + [1]*18
+    # cutlay_lst = [0]*12 + [1]*18
+    cutlay_lst = [0]*20
 
     file_name,args = common.get_file_name(args,"HSFLAlgoCut")
 
