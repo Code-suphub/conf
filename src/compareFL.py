@@ -14,7 +14,6 @@ from sympy import apart_list
 from tqdm import tqdm
 
 import torch
-from tensorboardX import SummaryWriter
 
 from options import args_parser
 from update import LocalUpdate, test_inference

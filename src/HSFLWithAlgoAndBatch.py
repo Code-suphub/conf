@@ -12,7 +12,6 @@ import numpy as np
 from tqdm import tqdm
 
 import torch
-from tensorboardX import SummaryWriter
 
 from options import args_parser
 from update import LocalUpdate, test_inference
@@ -22,6 +21,8 @@ from random_generate import compute_capacity_rand_generate
 from scipy.special import lambertw
 from alog import Algo
 import common
+
+print(torch.__version__)
 
 rho, rho2,alpha = common.get_rho()
 # rho = 500
@@ -70,7 +71,7 @@ rho, rho2,alpha = common.get_rho()
 # rho2 = 100000
 # rho2 = 500000
 # rho2 = 1000000
-# rho2 = 5000000k
+# rho2 = 5000000
 
 if __name__ == '__main__':
     if True:
