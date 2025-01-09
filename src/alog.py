@@ -3,6 +3,7 @@ import math
 import numpy as np
 import torch
 from sympy import Float
+import cvxpy as cp
 
 from utils import mySolve2
 from scipy.optimize import newton
@@ -658,6 +659,61 @@ class Algo:
         ut_begin = x - y + z  # 归一化求解
         batch_size_begin = self.batch_size_lst[:]
 
+        def tuyouhua():
+            fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
+            tau = cp.Variable()
+            gamma = -self.rho*(sum(self.sl_lst)*(sum(self.sl_lst)-1))
+            xi_lst = []
+            for i in range(self.user_num):
+                xi_lst.append(cp.Variable())
+            objective = cp.Minimize(tau+gamma
+                                    +self.rho2*cp.inv_pos(xi_lst[0])
+                                    +self.rho2*cp.inv_pos(xi_lst[1])
+                                    +self.rho2*cp.inv_pos(xi_lst[2])
+                                    +self.rho2*cp.inv_pos(xi_lst[3])
+                                    +self.rho2*cp.inv_pos(xi_lst[4])
+                                    +self.rho2*cp.inv_pos(xi_lst[5])
+                                    +self.rho2*cp.inv_pos(xi_lst[6])
+                                    +self.rho2*cp.inv_pos(xi_lst[7])
+                                    +self.rho2*cp.inv_pos(xi_lst[8])
+                                    +self.rho2*cp.inv_pos(xi_lst[9])
+                                    +self.rho2*cp.inv_pos(xi_lst[10])
+                                    +self.rho2*cp.inv_pos(xi_lst[11])
+                                    +self.rho2*cp.inv_pos(xi_lst[12])
+                                    +self.rho2*cp.inv_pos(xi_lst[13])
+                                    +self.rho2*cp.inv_pos(xi_lst[14])
+                                    +self.rho2*cp.inv_pos(xi_lst[15])
+                                    +self.rho2*cp.inv_pos(xi_lst[16])
+                                    +self.rho2*cp.inv_pos(xi_lst[17])
+                                    +self.rho2*cp.inv_pos(xi_lst[18])
+                                    +self.rho2*cp.inv_pos(xi_lst[19])
+                                    +self.rho2*cp.inv_pos(xi_lst[20])
+                                    +self.rho2*cp.inv_pos(xi_lst[21])
+                                    +self.rho2*cp.inv_pos(xi_lst[22])
+                                    +self.rho2*cp.inv_pos(xi_lst[23])
+                                    +self.rho2*cp.inv_pos(xi_lst[24])
+                                    +self.rho2*cp.inv_pos(xi_lst[25])
+                                    +self.rho2*cp.inv_pos(xi_lst[26])
+                                    +self.rho2*cp.inv_pos(xi_lst[27])
+                                    +self.rho2*cp.inv_pos(xi_lst[28])
+                                    +self.rho2*cp.inv_pos(xi_lst[29])
+                                    )
+            constants = []
+            for i in range(self.user_num):
+                constants.append(xi_lst[i]>=10)
+                constants.append(xi_lst[i]<=len(self.user_groups[i]) * 0.8)
+            constants.append(tau<=tau_ub)
+            constants.append(tau>=tau_lb)
+            problem = cp.Problem(objective,constants)
+            problem.solve()
+            print()
+            for i in range(self.user_num):
+                print(f"最优解:xi[{i}] = {xi_lst[i].value}, ",end="")
+            print()
+            print(f"最优值：z = {problem.value}")
+            print(f"最优值：tau = {tau.value}, tau_lb = {tau_lb}")
+            return [x.value for x in xi_lst],problem.value
+        solv1,solv2 = tuyouhua()
         # TODO 目前这里只有1000了，应该要大一点
         while abs(tau_gap) > 0.000001 and cnt <1000:
             # 防止陷入死循环，如果没有fl用户或者有fl用户但是最大的lambda就是0.00001（即所有lambda值都更新为最小值） 且 mu值都更新为最小值或者sl用户为空
@@ -713,9 +769,12 @@ class Algo:
 
             # if ((max(self.lambda_lst)==0.00001 or sum(self.fl_lst)==0) and (self.mu == 0.00001 or sum(self.sl_lst)==0)) or  min(self.batch_size_lst)==batch_min or max(self.batch_size_lst) == max(self.user_groups):
             #     break
-
         ut_new_value,_ = self.cal_ut()
-
+        for i in range(self.user_num):
+            print(f"设备[{i}] 凸优化最优解：{solv1[i]}, 次梯度下降最优解： {self.batch_size_lst[i]}, 最大batch数量: {len(self.user_groups[i])}")
+        self.batch_size_lst = solv1
+        ut_aa_value,_ = self.cal_ut()
+        print(f"凸优化目标函数值:{ut_aa_value} ，次梯度下降目标函数值： {ut_new_value}")
         # TODO 这里的和上面的判定是否需要呢
         # if ut_new_value >= ut_begin:
         #     self.batch_size_lst = batch_size_begin[:]
