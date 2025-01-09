@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="lixuefei@222.204.232.139:22 password" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" autoUpload="Always" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
       <paths name="SchoolServer">
         <serverdata>
@@ -9,24 +9,10 @@
           </mappings>
         </serverdata>
       </paths>
-      <paths name="lixuefei@222.204.232.139:22 password">
+      <paths name="zhu@219.228.57.49:22 password">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/lixuefei/workdir/conferenceCode" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="lixuefei@222.204.232.15:22 password">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/tmp/pycharm_project_599" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="lixuefei@222.204.232.15:22 password (2)">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/data/lixuefei/conferenceCode" local="$PROJECT_DIR$" />
+            <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

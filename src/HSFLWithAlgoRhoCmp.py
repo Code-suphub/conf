@@ -24,7 +24,18 @@ from scipy.special import lambertw
 from alog import Algo
 
 rho, rho2,alpha = common.get_rho()
-rho2 = 500
+# alpha = 0.1
+# alpha = 1
+# alpha = 10
+# rho2 = 0.0001
+# rho2 = 0.001
+# rho2 = 0.01
+# rho2 = 0.1
+# rho2 = 1
+# rho2 = 10
+# rho2 = 100
+# rho2 = 1000
+rho2 = 10000
 # rho = 0.0001
 # rho = 0.001
 # rho = 0.01
@@ -32,20 +43,15 @@ rho2 = 500
 # rho = 1
 # rho = 10
 # rho = 100
-# rho = 1000
+rho = 1000
 # rho = 10000
 # rho = 100000
 # rho = 1000000
 # rho = 10000000
 # rho = 100000000
-# rho = 1000000000
-# rho = 10000000000
-# rho = 100000000000
-# rho = 1000000000000
-# rho = 10000000000000
-# rho = 100000000000000
 
 if __name__ == '__main__':
+    print("rho:",rho,"  rho2:",rho2, "   alpha:", alpha)
     # for rho in common.rho_lst:
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
     start_time = time.time()
@@ -57,7 +63,7 @@ if __name__ == '__main__':
     common.train_seed()
     args = args_parser()
     exp_details(args)
-    args.epochs = 200
+    args.epochs = 1000
     div = 1  # 7 和 17
     print("div: ",div)
 
@@ -101,9 +107,8 @@ if __name__ == '__main__':
     global_model.to(device)
     global_model.train()
 
-    base_file_name = "../save/output/conference/cmpResult/rho/cnt[1]_user30_"
+    file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv"
     res = ""
-    file_name = base_file_name + str(rho)+".csv"
     cnt = 0
 
     for epoch in tqdm(range(args.epochs)):
@@ -174,11 +179,21 @@ if __name__ == '__main__':
             cnt += 1
             ut_lst.append(ut_value)
 
-        for idx, a in enumerate(algo.fl_lst):
+        sample_data = []
+        for idx in range(len(user_groups)):
+            # TODO 对于SL排序后一次递增最小的，直到不满足SUM（SL_DELAY) <= TAU
+            sample_data.append(
+                random.sample(user_groups[idx][:int(0.8 * len(user_groups[idx]))], int(algo.batch_size_lst[idx])))
+        for idx, a in enumerate(fl_lst):
             if a == 1:
-                print("FL: ",idx, '----------------', len(user_groups[idx]), '--------------', len(user_groups),"----------rho--: ",rho,"----SLnum--",sum(algo.sl_lst))
+                print("FL：ind:", idx, '---------------- batch_size_lst: ', algo.batch_size_lst[idx], '------------',
+                      len(sample_data[idx]), '--------------', len(user_groups))
                 local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                          idxs=user_groups[idx])
+                                          idxs=sample_data[idx], sign=True,
+                                          validData=user_groups[idx][
+                                                    int(0.8 * len(user_groups[idx])):int(0.9 * len(user_groups[idx]))],
+                                          testData=user_groups[idx][
+                                                   int(0.9 * len(user_groups[idx])):int(len(user_groups[idx]))])
                 w, loss = local_model.update_weights(
                     model=copy.deepcopy(global_model), global_round=epoch, local_losses=local_losses,
                     local_weights=local_weights)
@@ -186,12 +201,16 @@ if __name__ == '__main__':
                 local_losses[ind] = copy.deepcopy(loss)
                 ind += 1
 
-        for idx, a in enumerate(algo.sl_lst):
+        for idx, a in enumerate(sl_lst):
             if a == 1:
-                print("SL: ", idx, '----------------', len(user_groups[idx]), '--------------', len(user_groups),
-                      "----------rho--: ", rho, "----SLnum--", sum(algo.sl_lst))
+                print("SL：   ", idx, '----------------', algo.batch_size_lst[idx], '------------',
+                      len(sample_data[idx]), '--------------', len(user_groups))
                 local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                          idxs=user_groups[idx])
+                                          idxs=sample_data[idx], sign=True,
+                                          validData=user_groups[idx][
+                                                    int(0.8 * len(user_groups[idx])):int(0.9 * len(user_groups[idx]))],
+                                          testData=user_groups[idx][
+                                                   int(0.9 * len(user_groups[idx])):int(len(user_groups[idx]))])
                 w, loss = local_model.update_weights(
                     model=copy.deepcopy(global_model), global_round=epoch, local_weights=local_weights,
                     local_losses=local_losses)
@@ -226,7 +245,7 @@ if __name__ == '__main__':
             print(f'Training Loss : {np.mean(np.array(train_loss))}')
             print('Train Accuracy: {:.2f}% \n'.format(100 * train_accuracy[-1]))
 
-        res+= f"{sum(algo.sl_lst)},{total_delay},{train_accuracy[-1]}\n"
+        res+= f"{sum(algo.sl_lst)},{total_delay},{train_accuracy[-1]},{sum(algo.batch_size_lst)}\n"
         with open(file_name,'w') as f:
             f.write(res)
 

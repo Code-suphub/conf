@@ -2,7 +2,6 @@ import json
 
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import cv2
 import common
 from options import args_parser
 
@@ -26,18 +25,18 @@ args = args_parser()
 div = 1
 gapend = 10
 
-def get_path(choice):
+def get_path(choice,alpha = 1):
 
     base_path = {
         # "HSFLAlgo": common.get_file_name(args, "HSFLAlgo","_rho[0.01]_test_without_fl_band")[0],
-        "HSFLAlgo": common.get_file_name(args, "AlgoWithBatch",f"__rho2[500000]")[0],
+        # "HSFLAlgo": common.get_file_name(args, "AlgoWithBatch",f"__rho2[500000]",alpha = alpha)[0],
         # "HSFLAlgoCut": common.get_file_name(args, "HSFLAlgoCut")[0],
         # "HSFLAlgoBand": common.get_file_name(args, "HSFLAlgoBand")[0],
-        "SL": common.get_file_name(args, "SL")[0],
-        "FL": common.get_file_name(args, "FL")[0],
-        "CHSFL": common.get_file_name(args, "CHSFL")[0],
+        "SL": common.get_file_name(args, "SL",alpha = alpha)[0],
+        "FL": common.get_file_name(args, "FL",alpha = alpha)[0],
+        "CHSFL": common.get_file_name(args, "CHSFL",alpha = alpha)[0],
         # "AlgoWithBatch": common.get_file_name(args, "AlgoWithBatch",f"_rho2[0.1]")[0],
-        "AlgoWithBatch": common.get_file_name(args, "AlgoWithBatch",f"__rho2[1000]")[0],
+        # "AlgoWithBatch": common.get_file_name(args, "AlgoWithBatch",f"__rho2[1000]",alpha = alpha)[0],
     }
 
     rho2_cmp_path = {
@@ -103,8 +102,8 @@ def get_plot_data(base_path,data_ind_lst_lst = None,extra_data_ind_lst = None):
         #     delay_lst[i]=[d * 100 for d in delay_lst[i]]
     return delay_lst, acc_lst, loss_lst, mean_loss_lst, lst, extra_data
 
-def get_main_data():
-    base_path = get_path("base")
+def get_main_data(alpha = 1):
+    base_path = get_path("base",alpha=alpha)
     return get_plot_data(base_path)
 
 
@@ -122,13 +121,13 @@ def conf_plot_main_en():
          "SL":"SL",
         "AlgoWithBatch":"AlgoWithBatch",
     }
-
-    delay_lst, acc_lst, loss_lst, mean_loss_lst,lst,_ = get_main_data()
-    plot(acc_lst, delay_lst, f"Test accuracy vs delay", "Overall learning delay [s]", "Test accuracy",lst,label_dic)
-    plot(loss_lst, delay_lst, "Training loss vs delay", "Overall learning delay [s]", "Training loss",lst,label_dic)
-    plot(acc_lst, [[i for i in range(len(acc))] for acc in acc_lst], f"Test accuracy vs round", "Learning round",
-         "Test accuracy", lst, label_dic)
-    plot(delay_lst, [[i for i in range(len(delay_lst[0]))] for _ in range(len(delay_lst))], "delay vs epoch", "epoch", "delay[s]",lst,label_dic)
+    for alpha in [0.1,1,10]:
+        delay_lst, acc_lst, loss_lst, mean_loss_lst,lst,_ = get_main_data(alpha)
+        plot(acc_lst, delay_lst, f"Test accuracy vs delay", "Overall learning delay [s]", "Test accuracy",lst,label_dic)
+        plot(loss_lst, delay_lst, "Training loss vs delay", "Overall learning delay [s]", "Training loss",lst,label_dic)
+        plot(acc_lst, [[i for i in range(len(acc))] for acc in acc_lst], f"Test accuracy vs round", "Learning round",
+             "Test accuracy", lst, label_dic)
+        plot(delay_lst, [[i for i in range(len(delay_lst[0]))] for _ in range(len(delay_lst))], "delay vs epoch", "epoch", "delay[s]",lst,label_dic)
 
 def conf_plot_cmp_en():
     """
@@ -172,10 +171,10 @@ def plot(y_lst, x_lst, title, x_label, y_label,lst,label_dic):
     if "Test accuracy vs delay" in title:
         for j in range(len(x_lst)):
             end = len(x_lst[j])
-            for i,acc in enumerate(y_lst[j]):
-                if acc >= 0.61:
-                    end = i
-                    break
+            # for i,acc in enumerate(y_lst[j]):
+            #     if acc >= 0.61:
+            #         end = i
+            #         break
             # for a, i in enumerate(x_lst[j]):
             #     if lst[j]=="CHSFL":  # CHSFL
             #         if i > 400*base:
@@ -277,9 +276,27 @@ def plot_cn():
     plt.rcParams["font.family"] = 'SimHei'
     conf_plot_main_cn()
 
+def plot_alpha_cmp(learning_mode = "FL"):
+    alpha_lst = [0.1,1,10]
+    base_path = {}
+    for alpha in alpha_lst:
+        base_path[learning_mode+"_"+str(alpha)] = common.get_file_name(args, learning_mode,alpha=alpha)[0]
+
+    label_dic = {p:p for p in base_path.keys()}
+    delay_lst, acc_lst, loss_lst, mean_loss_lst, lst, extra_data = get_plot_data(base_path)
+    plot(acc_lst, delay_lst, f"Test accuracy vs delay", "Overall learning delay [s]", "Test accuracy",lst,label_dic)
+    plot(loss_lst, delay_lst, "Training loss vs delay", "Overall learning delay [s]", "Training loss",lst,label_dic)
+    plot(acc_lst, [[i for i in range(len(acc))] for acc in acc_lst], f"Test accuracy vs round", "Learning round",
+         "Test accuracy", lst, label_dic)
+    plot(delay_lst, [[i for i in range(len(delay_lst[0]))] for _ in range(len(delay_lst))], "delay vs epoch", "epoch", "delay[s]",lst,label_dic)
+
+
+
+
 if __name__ == '__main__':
-    plot_en()
-    # plot_cmp()
+    # plot_en()
+    # plot_alpha_cmp(learning_mode="SL")
+    plot_cmp()
 
     # 效果比较好： ../save/output/conference/trainRes/temp_cur_AlgoWithBatch_dataset[cifar]_model[cnn]_epoch[150]_frac[1]_iid[1]_local_epoch[1]_Bs[32]_lr[0.001]_rho2[0.1].csv
     # 效果比较好： ../save/output/conference/trainRes/temp_cur_AlgoWithBatch_dataset[cifar]_model[cnn]_epoch[150]_frac[1]_iid[1]_local_epoch[1]_Bs[10]_lr[0.001]_rho2[0.1].csv

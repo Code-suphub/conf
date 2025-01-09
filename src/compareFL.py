@@ -45,8 +45,8 @@ if __name__ == '__main__':
     path_project = os.path.abspath('..')
 
     args = args_parser()
+    args.epochs = 1000
     exp_details(args)
-    args.epochs = 600
 
     device = 'cuda' if args.gpu else 'cpu'
 

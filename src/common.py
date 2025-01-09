@@ -11,9 +11,9 @@ file_mid = "_dataset[{}]_model[{}]_epoch[{}]_frac[{}]_iid[{}]_local_epoch[{}]_Bs
 file_tail = ".csv"
 
 epoch_map = {
-    "SL" : 100,
-    "FL":600,
-    "CHSFL":200,
+    "SL" : 1000,
+    "FL":1000,
+    "CHSFL":1000,
     "HSFLAlgo":150,
     "HSFLAlgoBand":150,
     "HSFLAlgoCut":150,
@@ -112,8 +112,11 @@ def cal_epsilon(ut_dif, sigma = 0.00075):
 
 rho = 500
 rho2 = 0.1
-alpha = 0.1
+# alpha = 10
+# alpha = 1
+alpha = 10
 def get_rho():
+    print("rho: ",rho," -- rho2: ",rho2, " -- alpha: ",alpha)
     return rho,rho2,alpha
 
 def generate_new_lst(fl_lst,sl_lst,args):

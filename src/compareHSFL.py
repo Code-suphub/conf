@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     args = args_parser()
     exp_details(args)
-    args.epochs = 200
+    args.epochs = 1000
 
     # if args.gpu:
     #     torch.cuda.set_device(args.gpu)
@@ -111,9 +111,8 @@ if __name__ == '__main__':
     global_model.to(device)
     global_model.train()
     res =[]
-    pkd = 100
     # cutlay_lst = [0]*10 + [1]*10
-    cutlay_lst = [0]*20
+    cutlay_lst = [0]*args.num_users
 
 
     file_name,args = common.get_file_name(args,"CHSFL",alpha = alpha)

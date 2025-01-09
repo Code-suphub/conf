@@ -113,7 +113,11 @@ def shard_num_generate(train_labels, alpha, n_clients):
 
     client_idcs = [np.concatenate(idcs) for idcs in client_idcs]
 
+    # 这里必须打乱，否则验证集的标签和训练集的差别太大
     client_idcs = [i.tolist() for i in client_idcs]
+
+    for i in range(len(client_idcs)):
+        random.shuffle(client_idcs[i])
 
     return client_idcs
 
