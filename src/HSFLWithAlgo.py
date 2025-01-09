@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
         local_optim = 0
 
-        ut_value = max(fld, sld) - (sum(sl_lst)*(sum(sl_lst)-1))/rho #  归一化求解
+        ut_value = max(fld, sld) - (sum(sl_lst)*(sum(sl_lst)-1))*rho #  归一化求解
         total_delay = max(fld, sld)
         ut_lst = []
         ut_lst_lst = []
@@ -133,7 +133,7 @@ if __name__ == '__main__':
             fld,sld = algo.cal_delay()
 
             a = max(fld, sld)
-            b = (sum(sl_lst)*(sum(sl_lst)-1))/rho
+            b = (sum(sl_lst)*(sum(sl_lst)-1))*rho
             delay = max(fld, sld)
 
             ut_value_new = a - b #  归一化求解

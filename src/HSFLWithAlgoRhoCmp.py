@@ -38,12 +38,12 @@ rho, rho2,alpha = common.get_rho()
 rho2 = 10000
 # rho = 0.0001
 # rho = 0.001
-# rho = 0.01
+rho = 0.01
 # rho = 0.1
 # rho = 1
 # rho = 10
 # rho = 100
-rho = 1000
+# rho = 1000
 # rho = 10000
 # rho = 100000
 # rho = 1000000
@@ -135,12 +135,13 @@ if __name__ == '__main__':
 
         local_optim = 0
 
-        ut_value = max(fld, sld) - (sum(sl_lst)*(sum(sl_lst)-1))/rho #  归一化求解
+        ut_value = max(fld, sld) - rho*(sum(sl_lst)*(sum(sl_lst)-1)) #  归一化求解
         total_delay = max(fld, sld)
         ut_lst = []
         ut_lst_lst = []
         G = 200
-
+        with open("../save/output/conference/local_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv", 'a') as f:
+            pass
         while True:
             # 这个 for 循环是为了通过轮询的方式解决分别解决P1 和 P2
             local_optim = 0
@@ -172,8 +173,9 @@ if __name__ == '__main__':
                     total_delay = new_delay
 
             ut_new_value, _ = algo.cal_ut()
-
-            if cnt >= 15:
+            print("坐标轮询次数：",cnt)
+            # if cnt >= 15:
+            if cnt >= 100:
                 break
             ut_value = ut_new_value
             cnt += 1

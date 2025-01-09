@@ -76,7 +76,7 @@ class Algo:
         self.sample_size = sample_size
         self.pku = pku
         self.download_bandwidth = 1.4 * 10 ** 6
-        self.rho2 = 1/rho2
+        self.rho2 = rho2
 
         self.user_groups = user_groups  # 是否每一个round发生变化待定
 
@@ -592,7 +592,7 @@ class Algo:
             x = max(fld, sld)
         else:
             x = old
-        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) / self.rho
+        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) * self.rho
         z = sum(
             [self.rho2 / xi  for xi in self.batch_size_lst])
         z2 = sum(
@@ -653,9 +653,9 @@ class Algo:
 
         fld, sld = self.cal_delay(self.batch_size_lst)
         x = max(fld, sld)
-        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) / self.rho
+        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) * self.rho
         z = sum(
-            [1 / xi / self.rho2 for xi in self.batch_size_lst])
+            [1 / xi * self.rho2 for xi in self.batch_size_lst])
         ut_begin = x - y + z  # 归一化求解
         batch_size_begin = self.batch_size_lst[:]
 
@@ -699,23 +699,29 @@ class Algo:
                                     +self.rho2*cp.inv_pos(xi_lst[29])
                                     )
             constants = []
+            sl_delay = 0
             for i in range(self.user_num):
                 constants.append(xi_lst[i]>=10)
                 constants.append(xi_lst[i]<=len(self.user_groups[i]) * 0.8)
+                if self.fl_lst[i]==1:
+                    constants.append(fl_Tau_lst[i]*xi_lst[i]+fl_Gamma_lst[i]<=tau)
+                else:
+                    sl_delay+=sl_Tau_lst[i]*xi_lst[i]+sl_Gamma_lst[i]
+            constants.append(sl_delay<=tau)
             constants.append(tau<=tau_ub)
             constants.append(tau>=tau_lb)
             problem = cp.Problem(objective,constants)
             problem.solve()
-            print()
-            for i in range(self.user_num):
-                print(f"最优解:xi[{i}] = {xi_lst[i].value}, ",end="")
-            print()
-            print(f"最优值：z = {problem.value}")
-            print(f"最优值：tau = {tau.value}, tau_lb = {tau_lb}")
-            return [x.value for x in xi_lst],problem.value
+            # print()
+            # for i in range(self.user_num):
+            #     print(f"最优解:xi[{i}] = {xi_lst[i].value}, ",end="")
+            # print()
+            # print(f"最优值：z = {problem.value}")
+            # print(f"最优值：tau = {tau.value}, tau_lb = {tau_lb}")
+            return [np.mean(x.value) for x in xi_lst],np.mean(problem.value)
         solv1,solv2 = tuyouhua()
         # TODO 目前这里只有1000了，应该要大一点
-        while abs(tau_gap) > 0.000001 and cnt <1000:
+        while abs(tau_gap) > 0.000001 and cnt <10000:
             # 防止陷入死循环，如果没有fl用户或者有fl用户但是最大的lambda就是0.00001（即所有lambda值都更新为最小值） 且 mu值都更新为最小值或者sl用户为空
             # 如果这里出现了一千次，可以认定为收敛了
             ut_new_value,_ = self.cal_ut()
@@ -770,11 +776,16 @@ class Algo:
             # if ((max(self.lambda_lst)==0.00001 or sum(self.fl_lst)==0) and (self.mu == 0.00001 or sum(self.sl_lst)==0)) or  min(self.batch_size_lst)==batch_min or max(self.batch_size_lst) == max(self.user_groups):
             #     break
         ut_new_value,_ = self.cal_ut()
-        for i in range(self.user_num):
-            print(f"设备[{i}] 凸优化最优解：{solv1[i]}, 次梯度下降最优解： {self.batch_size_lst[i]}, 最大batch数量: {len(self.user_groups[i])}")
+        # for i in range(self.user_num):
+        #     f1 = "%10.3f" % solv1[i]
+        #     f2 = "%10.3f" % self.batch_size_lst[i]
+        #     print(f"设备[{i}][{'FL设备' if self.fl_lst[i]==1 else 'SL设备'}]\t 凸优化最优解：{f1},\t 次梯度下降最优解： {f2},\t 差距: {round(solv1[i] - self.batch_size_lst[i],3)}")
         self.batch_size_lst = solv1
         ut_aa_value,_ = self.cal_ut()
-        print(f"凸优化目标函数值:{ut_aa_value} ，次梯度下降目标函数值： {ut_new_value}")
+        # print(f"凸优化目标函数值:{ut_aa_value} ，次梯度下降目标函数值： {ut_new_value}")
+
+        with open("../save/output/conference/local_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv", 'a') as f:
+            f.write(f"{ut_aa_value},{ut_new_value}")
         # TODO 这里的和上面的判定是否需要呢
         # if ut_new_value >= ut_begin:
         #     self.batch_size_lst = batch_size_begin[:]

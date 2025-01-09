@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
             local_optim = 0
 
-            ut_value = max(fld, sld) - (sum(sl_lst) * (sum(sl_lst) - 1)) / rho + sum([1/xi/rho2 for xi in algo.batch_size_lst])   # 归一化求解
+            ut_value = max(fld, sld) - (sum(sl_lst) * (sum(sl_lst) - 1)) * rho + sum([1/xi*rho2 for xi in algo.batch_size_lst])   # 归一化求解
             total_delay = max(fld, sld)
             G = 1000
             ut_G_lst = []
@@ -144,10 +144,10 @@ if __name__ == '__main__':
                 # a = max(fld, sld)/sldUp
                 # b = (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1))
                 a = max(fld, sld)
-                b = (sum(sl_lst) * (sum(sl_lst) - 1)) / rho
+                b = (sum(sl_lst) * (sum(sl_lst) - 1)) * rho
                 delay = max(fld, sld)
                 # ut_value_new = max(fld, sld)  - (sum(sl_lst)*(sum(sl_lst)-1))/(args.num_users*(args.num_users-1)) #  归一化求解#  归一化求解
-                c = sum([1/xi/rho2 for xi in algo.batch_size_lst])
+                c = sum([1/xi*rho2 for xi in algo.batch_size_lst])
                 ut_value_new = a - b + c  # 归一化求解
                 # print("a: ",a,"  b: ",b,"  c: ",c)
                 ut_dif = ut_value_new - ut_value
