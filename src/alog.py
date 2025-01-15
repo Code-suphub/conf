@@ -57,7 +57,7 @@ def newton_solve(p_k,h_k,noise,S,upload_delay,bandwidth):
     #     raise RuntimeError("Failed to converge after {} iterations.".format(maxiter))
 
     initial_guess = max(1e-10, S / (upload_delay * math.log2(1 + (p_k * h_k) / noise))/ bandwidth)
-    b_k_solution = newton(equation_to_solve,initial_guess)
+    b_k_solution = newton(equation_to_solve,initial_guess,maxiter=100)
     # print(b_k_solution)
     return b_k_solution
 
@@ -147,8 +147,8 @@ class Algo:
             self.sl_bandwidth, self.fl_bandwidth = self.b0 * self.Bandwidth, (1 - self.b0) * self.Bandwidth
             fld, sld = self.cal_delay(self.batch_size_lst)
             if cut_:
-                self.cut_decision(batch_lst)
-                # self.cutlayer_lst = cutlay_lst if cutlay_lst!=None else  [0 if self.sl_lst[i]==1 else self.cutlayer_lst[i]  for i in range(self.user_num) ]
+                # self.cut_decision(batch_lst)
+                self.cutlayer_lst = cutlay_lst[:] if cutlay_lst!=None else  [0 if self.sl_lst[i]==1 else self.cutlayer_lst[i]  for i in range(self.user_num) ]
             if band_:
                 self.bandwidth_with_delay_bin()
             fld, sld = self.cal_delay(self.batch_size_lst)
@@ -229,8 +229,14 @@ class Algo:
                     # # fl 用户，d =
                     # (s, p, t) = self.model_param[-1], self.signal_cap[i], tm - fl_non_uplink_delay[i]
                     upload_delay = tm - fl_non_uplink_delay[i]
-                    newton_b_k_ratio = newton_solve(self.signal_cap[i],self.pku,self.noise,self.model_param[-1],upload_delay ,self.Bandwidth*(1-self.b0))
+                    def cal_ratio(upload_delay):
+                        try:
+                            return newton_solve(self.signal_cap[i],self.pku,self.noise,self.model_param[-1],upload_delay ,self.Bandwidth*(1-self.b0))
+                        except Exception as e:
+                            print(e)
+                            return cal_ratio(upload_delay*10)
 
+                    newton_b_k_ratio = cal_ratio(upload_delay)
                     # print("newton_b_k",newton_b_k_ratio* self.Bandwidth*(1-self.b0))
                     # def equation_to_solve(b_k):
                     #     # b_k = max(b_k, 1e-6)
@@ -439,11 +445,11 @@ class Algo:
         :param sl_lst:
         :return:
         """
-        for i in range(len(self.fl_lst)):
-            if self.fl_lst[i]==1 and sl_lst[i]==1:
-                self.cutlayer_lst[i]= 1
-            elif self.sl_lst[i]==1 and fl_lst[i]==1:
-                self.cutlayer_lst[i]=[-1000,-1000]
+        # for i in range(len(self.fl_lst)):
+        #     if self.fl_lst[i]==1 and sl_lst[i]==1:
+        #         self.cutlayer_lst[i]= 1
+        #     elif self.sl_lst[i]==1 and fl_lst[i]==1:
+        #         self.cutlayer_lst[i]=[-1000,-1000]
         self.fl_lst = fl_lst[:]
         self.sl_lst = sl_lst[:]
         if fl_band_ratio==None:
@@ -600,6 +606,16 @@ class Algo:
         withRoundUt =  x - y + z2
         return x-y+z, x
 
+    def cal_old_ut(self,sign = True, old = 0):
+        if sign:
+            fld, sld = self.cal_delay(self.batch_size_lst)
+            x = max(fld, sld)
+        else:
+            x = old
+        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) * self.rho
+
+        return x-y, x
+
     def cal_communication_capability(self, ind, p, bandwidth):
         """
         注意，广播信道不进行带宽的分配
@@ -612,7 +628,7 @@ class Algo:
         self.lambda_lst = [0.1] *len(self.user_groups)
         self.mu = 0.1
 
-    def batch_size_decision(self,log = True):
+    def batch_size_decision(self,log = False,log2=False):
         # TODO rho2 暂定和rho1设定值相同
         # 如果这里的alpha_f很大，会导致第一次更新后lambda
         alpha_f = 0.00005
@@ -719,8 +735,11 @@ class Algo:
             # print(f"最优值：z = {problem.value}")
             # print(f"最优值：tau = {tau.value}, tau_lb = {tau_lb}")
             return [np.mean(x.value) for x in xi_lst],np.mean(problem.value)
-        solv1,solv2 = tuyouhua()
         # TODO 目前这里只有1000了，应该要大一点
+        ut___lst = []
+        ut__lst = []
+        tau_gap_lst = []
+        solv1, solv2 = tuyouhua()
         while abs(tau_gap) > 0.000001 and cnt <10000:
             # 防止陷入死循环，如果没有fl用户或者有fl用户但是最大的lambda就是0.00001（即所有lambda值都更新为最小值） 且 mu值都更新为最小值或者sl用户为空
             # 如果这里出现了一千次，可以认定为收敛了
@@ -731,8 +750,6 @@ class Algo:
             ut_begin = ut_new_value
             batch_size_begin = self.batch_size_lst[:]
             ut_lst.append((sum(self.batch_size_lst),tau_gap ,ut_begin))
-
-
 
             cnt+=1
             # 计算当前的 batchsize 大小
@@ -769,23 +786,36 @@ class Algo:
 
             alpha_s-=0.0000000000000000001
             alpha_f-=0.0000000000000000001
+            ut___lst.append(ut_begin)
+            ut__lst.append(ut_new_value)
+            tau_gap_lst.append(tau_gap)
+            for i in range(self.user_num):
+                f1 = "%10.3f" % solv1[i]
+                f2 = "%10.3f" % self.batch_size_lst[i]
+                print(f"设备[{i}][{'FL设备' if self.fl_lst[i]==1 else 'SL设备'}]\t 凸优化最优解：{f1},\t 次梯度下降最优解： {f2},\t 差距: {round(solv1[i] - self.batch_size_lst[i],3)}")
+
 
             # if cnt == 20:
                 # print()
 
             # if ((max(self.lambda_lst)==0.00001 or sum(self.fl_lst)==0) and (self.mu == 0.00001 or sum(self.sl_lst)==0)) or  min(self.batch_size_lst)==batch_min or max(self.batch_size_lst) == max(self.user_groups):
             #     break
+        with open("../save/output/conference/gradient.csv", 'w') as f:
+            f.write(",".join([str(i) for i in ut___lst]))
+        with open("../save/output/conference/gradient_origin.csv", 'w') as f:
+            f.write(",".join([str(i) for i in ut__lst]))
+        with open("../save/output/conference/tau_gap.csv", 'w') as f:
+            f.write(",".join([str(i) for i in tau_gap_lst]))
         ut_new_value,_ = self.cal_ut()
-        # for i in range(self.user_num):
-        #     f1 = "%10.3f" % solv1[i]
-        #     f2 = "%10.3f" % self.batch_size_lst[i]
-        #     print(f"设备[{i}][{'FL设备' if self.fl_lst[i]==1 else 'SL设备'}]\t 凸优化最优解：{f1},\t 次梯度下降最优解： {f2},\t 差距: {round(solv1[i] - self.batch_size_lst[i],3)}")
-        self.batch_size_lst = solv1
-        ut_aa_value,_ = self.cal_ut()
-        # print(f"凸优化目标函数值:{ut_aa_value} ，次梯度下降目标函数值： {ut_new_value}")
+        if log2:
+            solv1, solv2 = tuyouhua()
+            self.batch_size_lst = solv1
+            ut_aa_value,_ = self.cal_ut()
+            # print(f"凸优化目标函数值:{ut_aa_value} ，次梯度下降目标函数值： {ut_new_value}")
 
-        with open("../save/output/conference/local_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv", 'a') as f:
-            f.write(f"{ut_aa_value},{ut_new_value}")
+            with open(f"../save/output/conference/local_cnt[1]_user30_rho1[{self.rho}]_rho2[{self.rho2}]_alpha[{self.alpha}].csv",
+                      'a') as f:
+                f.write(f"{ut_aa_value},{ut_new_value}\n")
         # TODO 这里的和上面的判定是否需要呢
         # if ut_new_value >= ut_begin:
         #     self.batch_size_lst = batch_size_begin[:]

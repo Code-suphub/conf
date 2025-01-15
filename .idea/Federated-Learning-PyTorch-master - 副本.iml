@@ -4,7 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/save" />
     </content>
-    <orderEntry type="jdk" jdkName="Remote Python 3.9.0 (sftp://zhu@219.228.57.49:22/home/zhu/anaconda3/envs/lxfE/bin/python3)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="C:\Users\lxf_98\application\Code\Anaconda\envs\pytorch_temp" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">

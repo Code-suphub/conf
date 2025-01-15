@@ -17,7 +17,8 @@ epoch_map = {
     "HSFLAlgo":150,
     "HSFLAlgoBand":150,
     "HSFLAlgoCut":150,
-    "AlgoWithBatch":150
+    "AlgoWithBatch":150,
+    "AlgoOnlyBatch":150
 }
 
 def get_file_name(args,file_type,extra="",alpha=0):
@@ -72,68 +73,73 @@ def model_get(args,train_dataset):
 
 def cal_epsilon(ut_dif, sigma = 0.00075):
     try:
-        epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
+        return 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
     except:
-        # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
         ut_dif = ut_dif / 10
-        try:
-            epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
-        except:
-            # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
-            ut_dif = ut_dif / 10
-            try:
-                epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
-            except:
-                # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
-                ut_dif = ut_dif / 10
-                try:
-                    epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
-                except:
-                    # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
-                    ut_dif = ut_dif / 10
-                    try:
-                        epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
-                    except:
-                        # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
-                        ut_dif = ut_dif / 10
-                        try:
-                            epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
-                        except:
-                            # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
-                            ut_dif = ut_dif / 10
-                            try:
-                                epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
-                            except:
-                                # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
-                                ut_dif = ut_dif / 10
-                                epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
+        return cal_epsilon(ut_dif/10,sigma=0.00075)
+        # try:
+        #     epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
+        # except:
+        #     # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
+        #     ut_dif = ut_dif / 10
+        #     try:
+        #         epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
+        #     except:
+        #         # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
+        #         ut_dif = ut_dif / 10
+        #         try:
+        #             epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
+        #         except:
+        #             # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
+        #             ut_dif = ut_dif / 10
+        #             try:
+        #                 epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
+        #             except:
+        #                 # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
+        #                 ut_dif = ut_dif / 10
+        #                 try:
+        #                     epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
+        #                 except:
+        #                     # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
+        #                     ut_dif = ut_dif / 10
+        #                     try:
+        #                         epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
+        #                     except:
+        #                         # print(ut_value_new, ut_value, ut_dif / sigma + 0.0000001)
+        #                         ut_dif = ut_dif / 10
+        #                         epsilon = 1 / (1 + math.pow(math.e, ut_dif / sigma + 0.0000001))
 
-    return epsilon
+    # return epsilon
 
-rho = 500
-rho2 = 0.1
+rho = 4
+rho2 = 500
+# alpha = 0.1
+alpha = 1
 # alpha = 10
-# alpha = 1
-alpha = 10
 def get_rho():
     print("rho: ",rho," -- rho2: ",rho2, " -- alpha: ",alpha)
     return rho,rho2,alpha
 
 def generate_new_lst(fl_lst,sl_lst,args):
     # 进行新状态的生成，====没有问题====
-    while True:
-        randon_exchange_fl = random.randint(0, args.num_users - 1)
-        randon_exchange_sl = random.randint(0, args.num_users - 1)
-        if fl_lst[randon_exchange_fl] == 1 or sl_lst[randon_exchange_sl] == 1:  # 不允许两个都是0，否则是无效交换
-            break
-    if randon_exchange_sl == randon_exchange_fl:  # 同一个用户直接交换行为值
-        fl_lst[randon_exchange_fl], sl_lst[randon_exchange_sl] = sl_lst[randon_exchange_sl], fl_lst[
-            randon_exchange_fl]  # 簇间行为交换
-    else:  # 不同用户需要判断，如果任何一个是1，那么就需要切换另一个用户的状态，并且这个切换行为不是互斥的
-        if fl_lst[randon_exchange_fl] == 1:
-            fl_lst[randon_exchange_fl], sl_lst[randon_exchange_fl] = 0, 1  # 这个用户到达另一个学习方式组
-        if sl_lst[randon_exchange_sl] == 1:
-            fl_lst[randon_exchange_fl], sl_lst[randon_exchange_fl] = 1, 0
+    # while True:
+    #     randon_exchange_fl = random.randint(0, args.num_users - 1)
+    #     randon_exchange_sl = random.randint(0, args.num_users - 1)
+    #     if fl_lst[randon_exchange_fl] == 1 or sl_lst[randon_exchange_sl] == 1:  # 不允许两个都是0，否则是无效交换
+    #         break
+    # if randon_exchange_sl == randon_exchange_fl:  # 同一个用户直接交换行为值
+    #     fl_lst[randon_exchange_fl], sl_lst[randon_exchange_sl] = sl_lst[randon_exchange_sl], fl_lst[
+    #         randon_exchange_fl]  # 簇间行为交换
+    # else:  # 不同用户需要判断，如果任何一个是1，那么就需要切换另一个用户的状态，并且这个切换行为不是互斥的
+    #     if fl_lst[randon_exchange_fl] == 1:
+    #         fl_lst[randon_exchange_fl], sl_lst[randon_exchange_fl] = 0, 1  # 这个用户到达另一个学习方式组
+    #     if sl_lst[randon_exchange_sl] == 1:
+    #         fl_lst[randon_exchange_fl], sl_lst[randon_exchange_fl] = 1, 0
+    randon_exchange_ind = random.randint(0, args.num_users - 1)
+    fl_lst[randon_exchange_ind],sl_lst[randon_exchange_ind] = sl_lst[randon_exchange_ind],fl_lst[randon_exchange_ind]
+    # if sl_lst[randon_exchange_ind]==0: # 如果原来是sl用户
+    #     algo.cutlayer_lst[]
+
     return fl_lst,sl_lst
 
 

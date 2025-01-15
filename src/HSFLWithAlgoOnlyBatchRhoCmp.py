@@ -46,13 +46,13 @@ rho2 = 50
 # rho = 0.001
 # rho = 0.01
 # rho = 0.1
-# rho = 1
-# rho = 2
+rho = 1
+rho = 2
 # rho = 3
 # rho = 4
 # rho = 5
 # rho = 6
-rho = 7
+# rho = 7
 # rho = 8
 # rho = 9
 # rho = 10
@@ -166,7 +166,6 @@ if __name__ == '__main__':
         if log2:
             with open(f"../save/output/conference/local_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv", 'w') as f:
                 pass
-        ut_list = []
         while True:
             # 这个 for 循环是为了通过轮询的方式解决分别解决P1 和 P2
             local_optim = 0
@@ -178,8 +177,6 @@ if __name__ == '__main__':
             # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
             ut_lst = []
             ut_value, total_delay = algo.cal_old_ut()  # 归一化求解
-            if len(ut_list)==0:
-                ut_list.append(ut_value)
             for local_optim in range(G):
                 old_algo = copy.deepcopy(algo)
                 fl_lst, sl_lst = common.generate_new_lst(algo.fl_lst[:], algo.sl_lst[:], args)
@@ -196,11 +193,8 @@ if __name__ == '__main__':
                 else:
                     ut_value = ut_new_value
                     total_delay = new_delay
-
-                ut_lst.append(ut_value)
+                # ut_lst.append(ut_value)
                 # print(ut_lst[-1], sum(algo.sl_lst))
-            with open("../save/output/conference/gibbs.csv",'w') as f:
-                f.write(",".join([str(i) for i in ut_lst]))
 
             # print("SL number: ", sum(algo.sl_lst), "  rho1: ", rho, "  rho2: ", rho2)
             # plt.plot(list(range(1,len(ut_lst)+1)),ut_lst)
@@ -214,15 +208,11 @@ if __name__ == '__main__':
                 if cnt >= 100:
                     break
             else:
-                if cnt >= 50:
+                if cnt >= 15:
                     break
             ut_value = ut_new_value
-            ut_list.append(ut_value)
             cnt += 1
             ut_lst.append(ut_value)
-            with open("../save/output/conference/coordinate.csv",'w') as f:
-                f.write(",".join([str(i) for i in ut_lst]))
-
         if log2:
             1/0
         # 1/0

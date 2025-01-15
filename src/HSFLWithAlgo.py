@@ -36,7 +36,6 @@ if __name__ == '__main__':
     common.train_seed()
     args = args_parser()
     exp_details(args)
-    args.epochs = 150
     div = 1  # 7 和 17
     print("div: ",div)
 
@@ -91,6 +90,7 @@ if __name__ == '__main__':
 
     file_name,args = common.get_file_name(args,"HSFLAlgo","_rho[0.01]_test_without_fl_band",alpha = alpha)
 
+    args.epochs = 1000
     for epoch in tqdm(range(args.epochs)):
         compute_list = compute_capacity_rand_generate(args.num_users)  # 获取每个用户的计算能力
         capacity, signal_cap,Bandwidth,noise,pku = cal_uplink_rate(args.num_users)  # 获取每个用户的噪声和信号功率
@@ -111,7 +111,7 @@ if __name__ == '__main__':
         sl_lst = [0]*args.num_users
         algo = Algo(fl_lst,sl_lst,capacity,Bandwidth,signal_cap,model_param,activations,user_groups,
                     args,flops,compute_list,sample_size,pku,rho2 =10)
-
+        algo.batch_size_lst = [len(i) for i in user_groups]
         fld,sld = algo.cal_delay()
 
         local_optim = 0
@@ -120,15 +120,17 @@ if __name__ == '__main__':
         total_delay = max(fld, sld)
         ut_lst = []
         ut_lst_lst = []
-        G = 1000
+        G = 200
         # for local_optim in range(G):
-        for local_optim in tqdm(range(G)):
+
+        cutlay_lst = [0] * args.num_users
+        for local_optim in range(G):
             old = (fl_lst[:],sl_lst[:])
-            fl_lst,sl_lst = common.generate_new_lst(fl_lst,sl_lst,args)
-            algo.update_partition(fl_lst,sl_lst)
+            fl_lst,sl_lst = common.generate_new_lst(algo.fl_lst[:],algo.sl_lst[:],args)
+            algo.update_partition(fl_lst[:],sl_lst[:])
             ind = 0
             # while True:
-            b0 = algo.binary_b0(True,True)
+            b0 = algo.binary_b0(True,True,cutlay_lst= cutlay_lst)
 
             fld,sld = algo.cal_delay()
 
@@ -154,7 +156,8 @@ if __name__ == '__main__':
             ind = 0
             for idx, a in enumerate(fl_lst):
                 if a == 1:
-                    print(idx, '----------------', len(user_groups[idx]), '--------------', len(user_groups))
+                    print("FL：ind:", idx, '---------------- batch_size_lst: ', algo.batch_size_lst[idx], '------------',
+                          len(user_groups[idx]), '-------------- SL number: ', sum(algo.sl_lst))
                     local_model = LocalUpdate(args=args, dataset=train_dataset,
                                               idxs=user_groups[idx])
                     w, loss = local_model.update_weights(
@@ -166,7 +169,8 @@ if __name__ == '__main__':
 
             for idx, a in enumerate(sl_lst):
                 if a == 1:
-                    print(idx, '----------------', len(user_groups[idx]), '--------------', len(user_groups))
+                    print("SL：   ", idx, '----------------', algo.batch_size_lst[idx], '------------',
+                          len(user_groups[idx]), '-------------- SL number: ', sum(algo.sl_lst))
                     local_model = LocalUpdate(args=args, dataset=train_dataset,
                                               idxs=user_groups[idx])
                     w, loss = local_model.update_weights(

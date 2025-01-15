@@ -25,53 +25,6 @@ import common
 print(torch.__version__)
 
 rho, rho2,alpha = common.get_rho()
-# rho = 500
-# rho2 = 0.00000001
-# rho2 = 0.00000005
-# rho2 = 0.0000001
-# rho2 = 0.0000005
-# rho2 = 0.000001
-# rho2 = 0.000005
-# rho2 = 0.00001
-# rho2 = 0.00005
-# rho2 = 0.0001
-# rho2 = 0.0005
-# rho2 = 0.001
-# rho2 = 0.005
-# rho2 = 0.01
-# rho2 = 0.05
-# rho2 = 0.1
-# rho2 = 0.5
-# rho2 = 1
-# rho2 = 5
-# rho2 = 10
-# rho2 = 50
-# rho2 = 100
-# rho2 = 500
-# rho2 = 1000
-# rho2 = 1500
-# rho2 = 2000
-# rho2 = 2500
-# rho2 = 3000
-# rho2 = 3500
-# rho2 = 4000
-# rho2 = 4500
-# rho2 = 5000
-# rho2 = 5500
-# rho2 = 6000
-# rho2 = 6500
-# rho2 = 7000
-# rho2 = 7500
-# rho2 = 8000
-# rho2 = 8500
-# rho2 = 9000
-# rho2 = 9500
-# rho2 = 10000
-# rho2 = 50000
-# rho2 = 100000
-# rho2 = 500000
-# rho2 = 1000000
-# rho2 = 5000000
 
 if __name__ == '__main__':
     if True:
@@ -131,12 +84,14 @@ if __name__ == '__main__':
 
     res = [] # 最终保存结果的地方
 
-    file_name,args = common.get_file_name(args,"AlgoWithBatch",f"__rho2[{rho2}]",alpha)
+    file_name,args = common.get_file_name(args,"AlgoOnlyBatch",f"__rho2[{rho2}]",alpha)
 
     td = ""
     sumT=0
     cnt=0
-    args.epochs = 1000
+    args.epochs = 5000
+
+    print("rho: ",rho," -- rho2: ",rho2, " -- alpha: ",alpha)
     for epoch in tqdm(range(args.epochs)):
         t1 = time.time()
         compute_list = compute_capacity_rand_generate(args.num_users)  # 获取每个用户的计算能力
@@ -166,45 +121,8 @@ if __name__ == '__main__':
         algo.rho = rho
         algo.rho2 = rho2
         ut_lst = []
-        while True:
-            # 这个 for 循环是为了通过轮询的方式解决分别解决P1 和 P2
-            local_optim = 0
+        algo.batch_size_decision(log=False)
 
-            ut_value,total_delay = algo.cal_ut()  # 归一化求解
-            # TODO 这里的G目前降低了，加速训练
-            G = 200
-            ut_G_lst = []
-
-            algo.batch_size_decision(log=False)
-            # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
-            for local_optim in range(G):
-
-                fl_lst, sl_lst = common.generate_new_lst(algo.fl_lst[:], algo.sl_lst[:], args)
-
-                old_algo = copy.deepcopy(algo)
-                algo.update_partition(fl_lst[:], sl_lst[:])
-                ind = 0
-                b0 = algo.binary_b0(True, True)
-                ut_new_value,new_delay = algo.cal_ut()  # 归一化求解
-
-                # print("a: ",a,"  b: ",b,"  c: ",c)
-                ut_dif = ut_new_value - ut_value
-                epsilon = common.cal_epsilon(ut_dif)
-                if random.random() > epsilon:
-                    algo = copy.deepcopy(old_algo)
-                else:
-                    ut_value = ut_new_value
-                    total_delay = new_delay
-
-            ut_new_value, _ = algo.cal_ut()
-
-            if cnt > 25:
-                break
-            ut_value = ut_new_value
-            cnt+=1
-            ut_lst.append(ut_value)
-        with open("../save/output/conference/midRes/ut/algoWithBatch.csv",'w') as f:
-            f.write(",".join([str(i) for i in ut_lst]))
         fld, sld = algo.cal_delay(algo.batch_size_lst)
 
         res.append([sum(sl_lst), max(fld, sld)])

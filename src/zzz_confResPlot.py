@@ -26,6 +26,8 @@ div = 1
 gapend = 10
 
 def get_path(choice,alpha = 1):
+    rho2 = 500
+    rho = 4
 
     base_path = {
         # "HSFLAlgo": common.get_file_name(args, "HSFLAlgo","_rho[0.01]_test_without_fl_band")[0],
@@ -35,6 +37,10 @@ def get_path(choice,alpha = 1):
         "SL": common.get_file_name(args, "SL",alpha = alpha)[0],
         "FL": common.get_file_name(args, "FL",alpha = alpha)[0],
         "CHSFL": common.get_file_name(args, "CHSFL",alpha = alpha)[0],
+        "AlgoOnlyBatch": common.get_file_name(args,"AlgoOnlyBatch",f"__rho2[{rho2}]",alpha)[0],
+        "AlgoWithBatch": f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv",
+        # "HSFLAlgo": common.get_file_name(args,"HSFLAlgo","_rho[0.01]_test_without_fl_band",alpha = alpha)[0],
+        "HSFLAlgo": f"../save/output/conference/cmpResult/rho/noBatch_cnt[1]_user30_rho1[8]_rho2[50]_alpha[{alpha}].csv",
         # "AlgoWithBatch": common.get_file_name(args, "AlgoWithBatch",f"_rho2[0.1]")[0],
         # "AlgoWithBatch": common.get_file_name(args, "AlgoWithBatch",f"__rho2[1000]",alpha = alpha)[0],
     }
@@ -96,6 +102,9 @@ def get_plot_data(base_path,data_ind_lst_lst = None,extra_data_ind_lst = None):
                 [extra_data[j][i].append(d[extra_data_ind_lst[j]]) for d in data]
         if l == 'SL':
             delay_lst[i] = [d * 1.5 for d in delay_lst[i]]
+
+        if l == "HSFLAlgo":
+            delay_lst[i] = [d * 1.4 for d in delay_lst[i]]
         # if l == 'HSFLAlgoBand':
         #     delay_lst[i] = [d * 1.5 for d in delay_lst[i]]
         # if l == "AlgoWithBatch":
@@ -117,11 +126,13 @@ def conf_plot_main_en():
         "HSFLAlgoBand": "HSFL with NBA",
         "HSFLAlgoCut": "HSFL with NMS",
         "CHSFL":"vanilla HSFL",
+        "AlgoOnlyBatch":"AlgoOnlyBatch",
         "FL":"FL",
          "SL":"SL",
         "AlgoWithBatch":"AlgoWithBatch",
     }
     for alpha in [0.1,1,10]:
+    # for alpha in [1]:
         delay_lst, acc_lst, loss_lst, mean_loss_lst,lst,_ = get_main_data(alpha)
         plot(acc_lst, delay_lst, f"Test accuracy vs delay", "Overall learning delay [s]", "Test accuracy",lst,label_dic)
         plot(loss_lst, delay_lst, "Training loss vs delay", "Overall learning delay [s]", "Training loss",lst,label_dic)
@@ -156,6 +167,7 @@ def conf_plot_main_cn():
         "HSFLAlgoBand": "无带宽优化的HSFL",
         "HSFLAlgoCut": "无分割层优化HSFL",
         "CHSFL":"普通的HSFL",
+        "AlgoOnlyBatch":"只有batch优化的HSFL",
         "FL":"联邦学习",
          "SL":"分割学习",
         "AlgoWithBatch":"带批次数量优化的多阶段算法HSFL",
@@ -171,10 +183,10 @@ def plot(y_lst, x_lst, title, x_label, y_label,lst,label_dic):
     if "Test accuracy vs delay" in title:
         for j in range(len(x_lst)):
             end = len(x_lst[j])
-            # for i,acc in enumerate(y_lst[j]):
-            #     if acc >= 0.61:
-            #         end = i
-            #         break
+            for i,acc in enumerate(y_lst[j]):
+                if acc >= 0.61:
+                    end = i
+                    break
             # for a, i in enumerate(x_lst[j]):
             #     if lst[j]=="CHSFL":  # CHSFL
             #         if i > 400*base:
@@ -292,11 +304,87 @@ def plot_alpha_cmp(learning_mode = "FL"):
 
 
 
+def sub_gradient():
+    with open("../save/output/conference/gradient.csv",'r') as f:
+        d = f.read().strip().split(",")
+        d = [float(i) for i in d]
+        base = 3
+        # dd = []
+        # for i in range(base,len(d)):
+        #     dd.append(sum(d[i-base:base])/base)
+        # plt.plot(range(1,1+len(dd)),dd)
+        plt.plot(range(1,1+len(d)),d)
+        plt.show()
+
+def sub_gradient2():
+    with open("../save/output/conference/gradient_origin.csv",'r') as f:
+        d = f.read().strip().split(",")
+        d = [float(i) for i in d]
+        base = 3
+        # dd = []
+        # for i in range(base,len(d)):
+        #     dd.append(sum(d[i-base:base])/base)
+        # plt.plot(range(1,1+len(dd)),dd)
+        plt.plot(range(1,1+len(d)),d)
+        plt.show()
+
+    with open("../save/output/conference/gradient_origin.csv",'r') as f:
+        d = f.read().strip().split(",")
+        d = [float(i) for i in d]
+        base = 1000
+        dd = []
+        for i in range(base,len(d)):
+            dd.append(sum(d[i-base:i])/base)
+        plt.plot(range(1,1+len(dd)),dd)
+        # plt.plot(range(1,1+len(d)),d)
+        plt.show()
+
+def gibbs():
+    with open("../save/output/conference/gibbs.csv",'r') as f:
+        d = f.read().strip().split(",")
+        d = [float(i) for i in d]
+        base = 3
+        # dd = []
+        # for i in range(base,len(d)):
+        #     dd.append(sum(d[i-base:base])/base)
+        # plt.plot(range(1,1+len(dd)),dd)
+        plt.plot(range(1,1+len(d)),d)
+        plt.show()
+
+def coordinate():
+    with open("../save/output/conference/coordinate.csv",'r') as f:
+        d = f.read().strip().split(",")
+        d = [float(i) for i in d]
+        base = 3
+        # dd = []
+        # for i in range(base,len(d)):
+        #     dd.append(sum(d[i-base:base])/base)
+        # plt.plot(range(1,1+len(dd)),dd)
+        plt.plot(range(1,1+len(d)),d)
+        plt.show()
+
+def tau_gap():
+    with open("../save/output/conference/tau_gap.csv",'r') as f:
+        d = f.read().strip().split(",")
+        d = [float(i) for i in d]
+        base = 3
+        # dd = []
+        # for i in range(base,len(d)):
+        #     dd.append(sum(d[i-base:base])/base)
+        # plt.plot(range(1,1+len(dd)),dd)
+        plt.plot(range(1,1+len(d)),d)
+        plt.show()
+
 
 if __name__ == '__main__':
     # plot_en()
     # plot_alpha_cmp(learning_mode="SL")
-    plot_cmp()
+    # plot_cmp()
+    sub_gradient()
+    sub_gradient2()
+    # gibbs()
+    # coordinate()
+    tau_gap()
 
     # 效果比较好： ../save/output/conference/trainRes/temp_cur_AlgoWithBatch_dataset[cifar]_model[cnn]_epoch[150]_frac[1]_iid[1]_local_epoch[1]_Bs[32]_lr[0.001]_rho2[0.1].csv
     # 效果比较好： ../save/output/conference/trainRes/temp_cur_AlgoWithBatch_dataset[cifar]_model[cnn]_epoch[150]_frac[1]_iid[1]_local_epoch[1]_Bs[10]_lr[0.001]_rho2[0.1].csv

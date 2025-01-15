@@ -5,7 +5,14 @@
       <webServer id="2c51b8b5-37b7-4fd9-b4c9-fe9de7fcde36" name="SchoolServer" url="http://222.204.232.15">
         <fileTransfer rootFolder="/data/lixuefei" host="222.204.232.15" port="21">
           <advancedOptions>
-            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="244fdec4-4c92-44c5-90ed-edfda8ccb0cb" name="zhu">
+        <fileTransfer accessType="SFTP" host="219.228.57.49" port="22" sshConfigId="9e618ab9-a5db-4820-98c3-f3dd784ddba3" sshConfig="zhu@219.228.57.49:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
         </fileTransfer>
       </webServer>

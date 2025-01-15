@@ -27,8 +27,8 @@ from alog import Algo
 rho, rho2,alpha = common.get_rho()
 log2 = False
 # alpha = 0.1
-alpha = 1
-# alpha = 10
+# alpha = 1
+alpha = 10
 # rho2 = 10
 # rho2 = 100
 # rho2 = 1000
@@ -39,35 +39,14 @@ rho2 = 50
 # rho2 = 5000
 # rho2 = 50000
 # rho2 = 500000
-# rho = 0.0000001
-# rho = 0.000001
-# rho = 0.00001
-# rho = 0.0001
-# rho = 0.001
-# rho = 0.01
-# rho = 0.1
-# rho = 1
-# rho = 2
-# rho = 3
-# rho = 4
-# rho = 5
 # rho = 6
 rho = 7
-# rho = 8
-# rho = 9
-# rho = 10
-# rho = 100
-# rho = 1000
-# rho = 10000
-# rho = 100000
-# rho = 1000000
-# rho = 10000000
-# rho = 100000000
-# rho = 1000000000
-# rho = 10000000000
-# rho = 100000000000
-# rho = 1000000000000
-# rho = 10000000000000
+rho = 8
+rho = 9
+rho = 10
+# rho = 30
+# rho = 50
+# rho = 70
 
 if __name__ == '__main__':
     print("rho:",rho,"  rho2:",rho2, "   alpha:", alpha)
@@ -128,7 +107,7 @@ if __name__ == '__main__':
     global_model.to(device)
     global_model.train()
 
-    file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv"
+    file_name = f"../save/output/conference/cmpResult/rho/noBatch_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv"
     cnt = 0
     sumT=0
     cutlay_lst = [0]*100 # 0: 4435, 1: 7047, 2: 7525, 3: 7633, 4: 7640
@@ -155,6 +134,7 @@ if __name__ == '__main__':
         algo.rho2 = rho2
         algo.alpha = alpha
         algo.cutlayer_lst = cutlay_lst[:]
+        algo.batch_size_lst = [int(len(i)*0.8) for i in user_groups]
 
         fld,sld = algo.cal_delay()
 
@@ -166,63 +146,45 @@ if __name__ == '__main__':
         if log2:
             with open(f"../save/output/conference/local_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv", 'w') as f:
                 pass
-        ut_list = []
-        while True:
-            # 这个 for 循环是为了通过轮询的方式解决分别解决P1 和 P2
-            local_optim = 0
-            # TODO 这里的G目前降低了，加速训练
-            G = 200
-            ut_G_lst = []
+        # while True:
+        # 这个 for 循环是为了通过轮询的方式解决分别解决P1 和 P2
+        local_optim = 0
+        # TODO 这里的G目前降低了，加速训练
+        G = 200
+        ut_G_lst = []
 
-            algo.batch_size_decision(log=False,log2=log2)
-            # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
-            ut_lst = []
-            ut_value, total_delay = algo.cal_old_ut()  # 归一化求解
-            if len(ut_list)==0:
-                ut_list.append(ut_value)
-            for local_optim in range(G):
-                old_algo = copy.deepcopy(algo)
-                fl_lst, sl_lst = common.generate_new_lst(algo.fl_lst[:], algo.sl_lst[:], args)
-                algo.update_partition(fl_lst[:], sl_lst[:])
-                ind = 0
-                b0 = algo.binary_b0(True, True,cutlay_lst=cutlay_lst)
-                ut_new_value, new_delay = algo.cal_old_ut()  # 归一化求解
+        # algo.batch_size_decision(log=False,log2=log2)
+        # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
+        ut_lst = []
+        ut_value, total_delay = algo.cal_old_ut()  # 归一化求解
+        for local_optim in range(G):
+            old_algo = copy.deepcopy(algo)
+            fl_lst, sl_lst = common.generate_new_lst(algo.fl_lst[:], algo.sl_lst[:], args)
+            algo.update_partition(fl_lst[:], sl_lst[:])
+            ind = 0
+            b0 = algo.binary_b0(True, True,cutlay_lst=cutlay_lst)
+            ut_new_value, new_delay = algo.cal_old_ut()  # 归一化求解
 
-                # print("a: ",a,"  b: ",b,"  c: ",c)
-                ut_dif = ut_new_value - ut_value
-                epsilon = common.cal_epsilon(ut_dif)
-                if random.random() > epsilon:
-                    algo = copy.deepcopy(old_algo)
-                else:
-                    ut_value = ut_new_value
-                    total_delay = new_delay
-
-                ut_lst.append(ut_value)
-                # print(ut_lst[-1], sum(algo.sl_lst))
-            with open("../save/output/conference/gibbs.csv",'w') as f:
-                f.write(",".join([str(i) for i in ut_lst]))
-
-            # print("SL number: ", sum(algo.sl_lst), "  rho1: ", rho, "  rho2: ", rho2)
-            # plt.plot(list(range(1,len(ut_lst)+1)),ut_lst)
-            # plt.title(f"rho1: {rho}  rho2: {rho2}")
-            # plt.show()
-            # 1/0
-
-            ut_new_value, _ = algo.cal_ut()
-            if log2:
-                print("坐标轮询次数：",cnt)
-                if cnt >= 100:
-                    break
+            # print("a: ",a,"  b: ",b,"  c: ",c)
+            ut_dif = ut_new_value - ut_value
+            epsilon = common.cal_epsilon(ut_dif)
+            if random.random() > epsilon:
+                algo = copy.deepcopy(old_algo)
             else:
-                if cnt >= 50:
-                    break
-            ut_value = ut_new_value
-            ut_list.append(ut_value)
-            cnt += 1
-            ut_lst.append(ut_value)
-            with open("../save/output/conference/coordinate.csv",'w') as f:
-                f.write(",".join([str(i) for i in ut_lst]))
+                ut_value = ut_new_value
+                total_delay = new_delay
+            # ut_lst.append(ut_value)
+            # print(ut_lst[-1], sum(algo.sl_lst))
 
+        print("SL number: ", sum(algo.sl_lst), "  rho1: ", rho, "  rho2: ", rho2)
+        # plt.plot(list(range(1,len(ut_lst)+1)),ut_lst)
+        # plt.title(f"rho1: {rho}  rho2: {rho2}")
+        # plt.show()
+        # 1/0
+
+        ut_new_value, _ = algo.cal_ut()
+        ut_value = ut_new_value
+        ut_lst.append(ut_value)
         if log2:
             1/0
         # 1/0
