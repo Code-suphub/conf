@@ -25,6 +25,9 @@ import common
 print(torch.__version__)
 
 rho, rho2,alpha = common.get_rho()
+alpha = 0.1
+alpha = 1
+alpha = 10
 
 if __name__ == '__main__':
     if True:

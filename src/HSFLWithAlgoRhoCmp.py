@@ -24,6 +24,9 @@ from random_generate import compute_capacity_rand_generate
 from scipy.special import lambertw
 from alog import Algo
 
+"""
+目前rho2= 500 , rho1 = 5是最优解
+"""
 rho, rho2,alpha = common.get_rho()
 log2 = False
 # alpha = 0.1
@@ -34,28 +37,38 @@ alpha = 1
 # rho2 = 1000
 # rho2 = 10000
 
-rho2 = 50
-# rho2 = 500
+# rho2 = 2000
 # rho2 = 5000
-# rho2 = 50000
-# rho2 = 500000
+# rho2 = 20000
+rho2 = 50
+rho2 = 200
+rho2 = 500
+rho2 = 50000
+# rho = 3
+# rho = 4
+# rho = 5
+# rho = 6
+# rho = 7
+# rho = 8
+rho = 9
+
+
+
+# rho = 10
+# rho = 0.01
+# rho = 0.1
+# rho = 1
+# rho = 2
+
+# TODO 7 8 500000 和 5 50000 的没跑
+"""
 # rho = 0.0000001
 # rho = 0.000001
 # rho = 0.00001
 # rho = 0.0001
 # rho = 0.001
-# rho = 0.01
-# rho = 0.1
-# rho = 1
-# rho = 2
-# rho = 3
-# rho = 4
-# rho = 5
-# rho = 6
-rho = 7
-# rho = 8
-# rho = 9
-# rho = 10
+
+
 # rho = 100
 # rho = 1000
 # rho = 10000
@@ -68,6 +81,7 @@ rho = 7
 # rho = 100000000000
 # rho = 1000000000000
 # rho = 10000000000000
+"""
 
 if __name__ == '__main__':
     print("rho:",rho,"  rho2:",rho2, "   alpha:", alpha)
@@ -93,6 +107,7 @@ if __name__ == '__main__':
     user_groups = shard_num_generate(np.array(train_dataset.targets), alpha ,args.num_users)
     # BUILD MODEL
     global_model,tempModel = common.model_get(args,train_dataset)
+    print(sum([len(i) for i in user_groups]))
 
     # Set the model to train and send it to device.
     print(global_model)
@@ -162,31 +177,45 @@ if __name__ == '__main__':
 
         ut_value = max(fld, sld) - rho*(sum(sl_lst)*(sum(sl_lst)-1)) #  归一化求解
         total_delay = max(fld, sld)
+        # ut_value, total_delay = algo.cal_old_ut()  # 归一化求解
+        ut_value, total_delay = algo.cal_ut()  # 归一化求解
         sl_num_lst = []
         if log2:
             with open(f"../save/output/conference/local_cnt[1]_user30_rho1[{rho}]_rho2[{rho2}]_alpha[{alpha}].csv", 'w') as f:
                 pass
         ut_list = []
+        algo.batch_size_init()
+
+        ut_lst = []
+        ut_lst.append(ut_value)
+        ut___lst = []
+
+        p  = f"../save/output/conference/round[{round}].csv"
         while True:
+
             # 这个 for 循环是为了通过轮询的方式解决分别解决P1 和 P2
             local_optim = 0
             # TODO 这里的G目前降低了，加速训练
-            G = 200
+            G = 100
             ut_G_lst = []
+            #
+            # ut_value, total_delay = algo.cal_old_ut()  # 归一化求解
+            ut_value, total_delay = algo.cal_ut()  # 归一化求解
+            ut_value__, max_delay = algo.cal_ut()
+            ut_G_lst.append(ut_value)
 
-            algo.batch_size_decision(log=False,log2=log2)
-            # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
-            ut_lst = []
-            ut_value, total_delay = algo.cal_old_ut()  # 归一化求解
             if len(ut_list)==0:
-                ut_list.append(ut_value)
+                ut_list.append(ut_value__)
+
             for local_optim in range(G):
                 old_algo = copy.deepcopy(algo)
                 fl_lst, sl_lst = common.generate_new_lst(algo.fl_lst[:], algo.sl_lst[:], args)
                 algo.update_partition(fl_lst[:], sl_lst[:])
                 ind = 0
                 b0 = algo.binary_b0(True, True,cutlay_lst=cutlay_lst)
-                ut_new_value, new_delay = algo.cal_old_ut()  # 归一化求解
+                # ut_new_value, new_delay = algo.cal_old_ut()  # 归一化求解
+                # TODO 如果这里计算ut不适用batch的值，会导致坐标轮询失效
+                ut_new_value, new_delay = algo.cal_ut()  # 归一化求解
 
                 # print("a: ",a,"  b: ",b,"  c: ",c)
                 ut_dif = ut_new_value - ut_value
@@ -197,10 +226,11 @@ if __name__ == '__main__':
                     ut_value = ut_new_value
                     total_delay = new_delay
 
-                ut_lst.append(ut_value)
+                # ut_lst.append(ut_value)
+                ut_G_lst.append(ut_value)
                 # print(ut_lst[-1], sum(algo.sl_lst))
-            with open("../save/output/conference/gibbs.csv",'w') as f:
-                f.write(",".join([str(i) for i in ut_lst]))
+            # with open(f"../save/output/new_gibbs[{epoch}][{cnt}]_rho1[{rho}]_rho2[{rho2}].csv",'w') as f:
+            #     f.write(",".join([str(i) for i in ut_G_lst]))
 
             # print("SL number: ", sum(algo.sl_lst), "  rho1: ", rho, "  rho2: ", rho2)
             # plt.plot(list(range(1,len(ut_lst)+1)),ut_lst)
@@ -214,14 +244,21 @@ if __name__ == '__main__':
                 if cnt >= 100:
                     break
             else:
-                if cnt >= 50:
+                if cnt >= 25:
                     break
             ut_value = ut_new_value
             ut_list.append(ut_value)
             cnt += 1
             ut_lst.append(ut_value)
-            with open("../save/output/conference/coordinate.csv",'w') as f:
-                f.write(",".join([str(i) for i in ut_lst]))
+            # with open(f"../save/output/conference/new_coordinate_rho1[{rho}]rho2[{rho2}].csv",'w') as f:
+            #     f.write(",".join([str(i) for i in ut_lst]))
+            # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
+            algo.batch_size_decision(epoch = epoch, countt = cnt, log=False,log2=log2)
+            ut___lst.append(algo.round())
+            with open(f"../save/output/conference/round[{round}].csv",'w') as f:
+                for i in ut___lst:
+                    f.write(",".join([str(j) for j in i]))
+                    f.write("\n")
 
         if log2:
             1/0
@@ -234,7 +271,7 @@ if __name__ == '__main__':
         for idx in range(len(user_groups)):
             # TODO 对于SL排序后一次递增最小的，直到不满足SUM（SL_DELAY) <= TAU
             sample_data.append(
-                random.sample(user_groups[idx][:int(0.8 * len(user_groups[idx]))], int(algo.batch_size_lst[idx])))
+                random.sample(user_groups[idx][:int(0.8 * len(user_groups[idx]))], min(int(algo.batch_size_lst[idx]),int(len(user_groups[idx])*0.8))))
         for idx, a in enumerate(fl_lst):
             if a == 1:
                 print("FL：ind:", idx, '---------------- batch_size_lst: ', algo.batch_size_lst[idx], '------------',

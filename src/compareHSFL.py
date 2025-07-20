@@ -24,6 +24,9 @@ from random_generate import compute_capacity_rand_generate
 from scipy.special import lambertw
 
 rho,rho2,alpha = common.get_rho()
+# alpha = 0.1
+alpha = 1
+alpha = 10
 
 if __name__ == '__main__':
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -140,6 +143,12 @@ if __name__ == '__main__':
         algo.cutlayer_lst = cutlay_lst
         fld, sld = algo.cal_delay()  # sl 是取总和，fl是取最大值
         res.append([sum(sl_lst),max(fld,sld)])  # 保留sl用户的数量和本轮的时延
+
+        fld, sld = algo.cal_delay2()
+        fld.append(sum(sld))
+        with open("HSFLWithCmp.txt",'w') as f:
+            f.write(",".join([str(i) for i in fld]))
+
         ind=0
         for idx,a in enumerate(fl_lst):
             if a==1:

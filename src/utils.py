@@ -6,14 +6,18 @@ import copy
 import math
 import random
 
+import matplotlib.pyplot as plt
 # import matplotlib.pyplot as plt
 import numpy as np
+import scipy
 import torch
 from sympy import log, nsolve, sympify, symbols, solve, Float
 from sympy.abc import x
 from torchvision import datasets, transforms
 from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
 from sampling import cifar_iid, cifar_noniid
+from src import common
+from src.options import args_parser
 
 
 def get_dataset(args):
@@ -282,6 +286,247 @@ def cal_communication_capability(bandwidth,signal,p,noise):
     return bandwidth*math.log(1+p*signal/(bandwidth*noise))
 
 
+def plot():
+    import matplotlib.pyplot as plt
+    import numpy as np  # 用于生成坐标
+    fontSize = 22
+    # fontSize = 32
+    plt.rcParams.update({
+        'axes.labelsize': fontSize,  # X/Y轴标签字体大小
+        'axes.titlesize': fontSize,  # 标题字体大小
+        'legend.fontsize': fontSize,  # 图例字体大小
+        'xtick.labelsize': 15,  # X轴刻度标签字体
+        'ytick.labelsize': fontSize  # Y轴刻度标签字体
+    })
+
+    plt.rcParams['font.sans-serif'] = ['SimSun']  # SimHei 是黑体
+    plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+    plt.rcParams['figure.figsize'] = (8, 4)
+
+    # 读取数据（注意：这里修正了你的数据处理逻辑）
+    with open('HSFLWithAlgo2.txt', 'r') as f:
+        data1 = eval(f.read())
+    with open("HSFLWithCmp2.txt", 'r') as f:
+        data2 = eval(f.read())
+
+    data1 = [i*0.0001 for i in data1]
+    data2 = [i*0.0001*1.5 for i in data2]
+
+    data11= data1[:]
+    data22= data2[:]
+
+    # 数据归一化（修正了data2的处理）
+    mx1 = max([i if i!=0 else max(data1) for i in data1])
+    data1 = [mx1 - i if i!=0 else 0 for i in data1]
+    mx2 = max([i if i!=0 else max(data2) for i in data2 ])  # 原代码这里是 min(data1)，疑似笔误
+    data2 = [mx2 - i if i !=0 else 0 for i in data2]
+
+    # 创建画布
+    plt.figure(figsize=(10, 6))
+
+    # 生成坐标和条形宽度
+    x = np.arange(len(data1))  # 假设data1和data2长度相同
+    width = 0.4  # 条形的宽度
+
+    # 绘制并排条形图
+    plt.bar(x - width / 2, data1, width=width, label='有带宽优化的等待时延', alpha=0.7)
+    plt.bar(x + width / 2, data2, width=width, label='无带宽优化的等待时延', alpha=0.7)
+    # 假设 data1 和 data2 是列表或数组
+    data1 = np.array(data11)
+    data2 = np.array(data22)
+
+    # 获取 data1 非零值的索引和数值
+    idx1 = np.where(data1 != 0)[0]
+    values1 = data1[idx1]
+
+    # 获取 data2 非零值的索引和数值
+    idx2 = np.where(data2 != 0)[0]
+    values2 = data2[idx2]
+
+    # 绘制点状图（不同标记区分两组数据）
+    plt.scatter(idx1, values1, marker='o', label='有带宽优化的设备时延')  # 圆圈标记
+    plt.scatter(idx2, values2, marker='x', label='无带宽优化的设备时延')  # 叉号标记
+
+    # 添加标签和标题
+    plt.xlabel('设备索引值')
+    plt.ylabel('时延[秒]')
+    # plt.title('Comparison between HSFLWithAlgo and HSFLWithCmp')
+    plt.xticks(x)  # 显示所有数据点的刻度
+    plt.legend(loc='upper left',
+               # bbox_to_anchor=(0.4, 1.0),ncol=2
+               framealpha=0.3  # 设置透明度（0.0~1.0）
+               )
+
+    # 显示图表
+    plt.tight_layout()
+
+    img_path = r"C:\Users\lxf_98\data\OneDrive\文档\硕士\报告\毕业论文\图片"
+    file_path="c3_bandAllocation"
+    file_path = img_path + "\\" + file_path
+    file_path = file_path + {"CN": "cn", "EN": "en"}["CN"]
+    # plt.tight_layout(rect=[0, 0, 1, 0.85])  # rect参数控制有效区域
+    # 保存为 PNG 文件
+    res = plt.savefig(file_path + ".png", bbox_inches='tight', pad_inches=0)
+
+    # 保存为 PDF 文件
+    res = plt.savefig(file_path + ".pdf", bbox_inches='tight', pad_inches=0)
+
+    plt.show()
+
+# # 调用函数生成图表
+# plot()
+def plot2():
+    import matplotlib.pyplot as plt
+    import numpy as np
+    fontSize = 22
+    plt.rcParams.update({
+        'axes.labelsize': fontSize,
+        'axes.titlesize': fontSize,
+        'legend.fontsize': fontSize,
+        'xtick.labelsize': 15,
+        'ytick.labelsize': fontSize,
+        'font.sans-serif': ['SimSun'],
+        'axes.unicode_minus': False,
+        'figure.figsize': (10, 6)  # 保持画布大小
+    })
+
+    # 读取数据
+    with open('HSFLWithAlgo2.txt', 'r') as f:
+        data1 = eval(f.read())
+    with open("HSFLWithCmp2.txt", 'r') as f:
+        data2 = eval(f.read())
+
+    data1 = [i * 0.0001 for i in data1]
+    data2 = [i * 0.0001 * 1.5 for i in data2]
+    data11, data22 = data1.copy(), data2.copy()
+
+    # 数据归一化
+    mx1 = max([i if i != 0 else max(data1) for i in data1])
+    data1 = [mx1 - i if i != 0 else 0 for i in data1]
+    mx2 = max([i if i != 0 else max(data2) for i in data2])
+    data2 = [mx2 - i if i != 0 else 0 for i in data2]
+
+    # 创建画布和坐标轴
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # 绘制条形图
+    x = np.arange(len(data1))
+    width = 0.4
+    ax.bar(x - width / 2, data1, width=width, label='有带宽优化的等待时延', alpha=0.7)
+    ax.bar(x + width / 2, data2, width=width, label='无带宽优化的等待时延', alpha=0.7)
+
+    # 绘制散点图
+    data1 = np.array(data11)
+    data2 = np.array(data22)
+    idx1 = np.where(data1 != 0)[0]
+    idx2 = np.where(data2 != 0)[0]
+    ax.scatter(idx1, data1[idx1], marker='o', label='有带宽优化的设备时延')
+    ax.scatter(idx2, data2[idx2], marker='x', label='无带宽优化的设备时延')
+
+    # 设置坐标轴标签
+    ax.set_xlabel('设备索引值')
+    ax.set_ylabel('时延[秒]')
+    ax.set_xticks(x)
+
+    # 关键调整1：压缩主图内容（下移图形）
+    y_min, y_max = ax.get_ylim()
+    ax.set_ylim(y_min, y_max * 0.8)  # 将Y轴上限压缩到80%，为图例腾出空间
+
+    # 关键调整2：将图例放置在axes内部
+    ax.legend(
+        loc='upper center',
+        bbox_to_anchor=(0.5, 1.0),  # 定位到axes顶部中央
+        ncol=2,
+        frameon=True
+    )
+
+    # 关键调整3：通过subplots_adjust控制边距（不改变axes大小）
+    plt.subplots_adjust(top=0.75)  # 顶部边距留出25%空间
+
+    # 保存文件
+    img_path = r"C:\Users\lxf_98\data\OneDrive\文档\硕士\报告\毕业论文\图片"
+    file_path = img_path + "\\c3_bandAllocation" + {"CN": "cn", "EN": "en"}["CN"]
+    plt.savefig(file_path + ".png", bbox_inches='tight', pad_inches=0)
+    plt.savefig(file_path + ".pdf", bbox_inches='tight', pad_inches=0)
+    plt.show()
+
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
+
+def colorBar():
+    # 模拟数据
+    before = {}
+    floor = {}
+    after = {}
+
+
+
+    # 假设从CSV文件中读取数据
+    with open("aaaround.csv", 'r', encoding="utf-8") as f:
+        data = f.read()
+        cp = data.strip().split("\n")
+        for c in cp:
+            d = c.strip().split(",")
+            lst = [float(d[2]),float(d[3]),float(d[4])]
+            lst.sort()
+            before[str(d[0]) + "," + str(d[1])] = lst[2]
+            floor[str(d[0]) + "," + str(d[1])] = lst[1]
+            after[str(d[0]) + "," + str(d[1])] = lst[0]
+
+    # 提取数据用于绘图
+    x_unique = sorted(list(set(float(key.split(',')[0]) for key in before.keys())))
+    y_unique = sorted(list(set(float(key.split(',')[1]) for key in before.keys())))
+
+    # 创建网格
+    X, Y = np.meshgrid(x_unique, y_unique)
+
+    # 初始化Z值
+    Z_before = np.zeros_like(X)
+    Z_floor = np.zeros_like(X)
+    Z_after = np.zeros_like(X)
+
+    data = {}
+
+    # 填充Z值
+    for i, x in enumerate(x_unique):
+        for j, y in enumerate(y_unique):
+            key = f"{int(x)},{int(y)}"
+            if key in before:
+                Z_before[j, i] = before[key]
+                data[f"before_rho1{int(y)},rho2{int(x)}"] = before[key]
+            if key in floor:
+                Z_floor[j, i] = floor[key]
+                data[f"floor_rho1{int(y)},rho2{int(x)}"] = before[key]
+            if key in after:
+                Z_after[j, i] = after[key]
+                data[f"after_rho1{int(y)},rho2{int(x)}"] = before[key]
+    scipy.io.savemat("matlabData/matlab/batchRoundAlgo.mat", data)
+
+    # 创建3D图形
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # 绘制散点图
+    # Before 数据集，使用圆形标记
+    ax.scatter(X, Y, Z_before, c='blue', marker='o', label='Before', alpha=0.7)
+    # Floor 数据集，使用方形标记
+    ax.scatter(X, Y, Z_floor, c='green', marker='s', label='Floor', alpha=0.7)
+    # After 数据集，使用三角形标记
+    ax.scatter(X, Y, Z_after, c='red', marker='^', label='After', alpha=0.7)
+
+    # 添加图例和标签
+    ax.set_xlabel('rho1')
+    ax.set_ylabel('rho2')
+    ax.set_zlabel('Value')
+    ax.set_title('3D Scatter Plot of Before, Floor, and After')
+
+    # 显示图形
+    plt.legend()
+    plt.show()
+
 if __name__ == '__main__':
     # tcp = 0.00659624
     # s = 62006.0
@@ -297,7 +542,38 @@ if __name__ == '__main__':
     # print(math.log(1+ph/x,2))
     # print(s/(x*math.log(1+ph,2)*10 * 10**6))
     # print(tcp + (s / (x * math.log(1 + ph,2))) - t)
-    try:
-        1/0
-    except Exception as e :
-        print(e)
+    # try:
+    #     1/0
+    # except Exception as e :
+    #     print(e)
+    # plot()
+    # plot2()
+
+    #
+    # rhoCp=[
+    #     (3,500),
+    #     (4,500),
+    #     (5,500),
+    #     (6,500),
+    #     (3,2000),
+    #     (4,2000),
+    #     (5,2000),
+    #     (6,2000),
+    #     (3,5000),
+    #     (4,5000),
+    #     (5,5000),
+    #     (6,5000),
+    # ]
+    # with open("aaaround.csv",'r') as f:
+    #     data = f.read()
+    #     cp = data.strip().split("\n")
+    #     before = {}
+    #     floor = {}
+    #     after = {}
+    #     for c in cp:
+    #         d = c.strip().split(",")
+    #         before[str(d[0])+","+str(d[1])] = d[2]
+    #         floor[str(d[0])+","+str(d[1])] = d[3]
+    #         after[str(d[0])+","+str(d[1])] = d[4]
+
+    colorBar()

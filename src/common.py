@@ -18,13 +18,14 @@ epoch_map = {
     "HSFLAlgoBand":150,
     "HSFLAlgoCut":150,
     "AlgoWithBatch":150,
-    "AlgoOnlyBatch":150
+    "AlgoOnlyBatch":150,
+    "AlgoNoBatch":1000,
 }
 
 def get_file_name(args,file_type,extra="",alpha=0):
     print("this is "+ file_type + " training ")
     args.epochs = epoch_map[file_type]
-    file_type = f"alpha[{alpha}]_compute_down_ten_time"+file_type
+    file_type = f"final_alpha[{alpha}]_compute_down_ten_time"+file_type
     file_name =  (file_base + file_type + file_mid + extra + file_tail). \
         format(args.dataset, args.model, args.epochs, args.frac, args.iid,
                args.local_ep, args.local_bs, args.lr)
@@ -32,7 +33,7 @@ def get_file_name(args,file_type,extra="",alpha=0):
     return file_name,args
 
 def train_seed():
-    seed = 124
+    seed = 48
     try:
         from pytorch_lightning import seed_everything
         seed_everything(seed)

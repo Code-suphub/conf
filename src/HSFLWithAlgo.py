@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
     sample = train_dataset[0][0]
     sample_size = sample.shape[0] * sample.shape[1] * sample.shape[2]
-    # model_param, flops = cal_model_flops(global_model, sample)
+    model_param, flops = cal_model_flops(global_model, sample)
     # with open("tempDate/model_param", "w") as f:
     #     json.dump(model_param,f)
     # with open("tempDate/flops", "w") as f:
@@ -148,6 +148,11 @@ if __name__ == '__main__':
                 total_delay = delay
             ut_lst.append(float(ut_value))
         ut_lst_lst.append(ut_lst)
+
+        fld, sld = algo.cal_delay2()
+        fld.append(max(sld))
+        with open("HSFLWithAlgo.txt",'w') as f:
+            f.write(",".join([str(i) for i in fld]))
 
         if True:
             total_delay = max(fld, sld)

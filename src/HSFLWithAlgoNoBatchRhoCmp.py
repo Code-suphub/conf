@@ -26,24 +26,24 @@ from alog import Algo
 
 rho, rho2,alpha = common.get_rho()
 log2 = False
-# alpha = 0.1
-# alpha = 1
+alpha = 0.1
+alpha = 1
 alpha = 10
 # rho2 = 10
 # rho2 = 100
 # rho2 = 1000
 # rho2 = 10000
 
-rho2 = 50
-# rho2 = 500
+# rho2 = 50
+rho2 = 500
 # rho2 = 5000
 # rho2 = 50000
 # rho2 = 500000
-# rho = 6
-rho = 7
-rho = 8
-rho = 9
-rho = 10
+rho = 6
+# rho = 7
+# rho = 8
+# rho = 9
+# rho = 10
 # rho = 30
 # rho = 50
 # rho = 70
@@ -157,13 +157,17 @@ if __name__ == '__main__':
         # TODO 对于batch的方式，直接 全是SL ，由于计算时延较小
         ut_lst = []
         ut_value, total_delay = algo.cal_old_ut()  # 归一化求解
+        update_cnt = 0
+
         for local_optim in range(G):
             old_algo = copy.deepcopy(algo)
             fl_lst, sl_lst = common.generate_new_lst(algo.fl_lst[:], algo.sl_lst[:], args)
             algo.update_partition(fl_lst[:], sl_lst[:])
             ind = 0
-            b0 = algo.binary_b0(True, True,cutlay_lst=cutlay_lst)
+            b0 = algo.binary_b0(True, False,cutlay_lst=cutlay_lst)
             ut_new_value, new_delay = algo.cal_old_ut()  # 归一化求解
+            fld, sld = algo.cal_delay2(algo.batch_size_lst)
+            sld = sum(sld)
 
             # print("a: ",a,"  b: ",b,"  c: ",c)
             ut_dif = ut_new_value - ut_value
@@ -173,6 +177,7 @@ if __name__ == '__main__':
             else:
                 ut_value = ut_new_value
                 total_delay = new_delay
+                update_cnt+=1
             # ut_lst.append(ut_value)
             # print(ut_lst[-1], sum(algo.sl_lst))
 
@@ -188,6 +193,12 @@ if __name__ == '__main__':
         if log2:
             1/0
         # 1/0
+
+
+        fld, sld = algo.cal_delay2(algo.batch_size_lst)
+        fld.append(sum(sld))
+        with open("HSFLWithCmp2.txt",'w') as f:
+            f.write(",".join([str(i) for i in fld]))
 
         fld, sld = algo.cal_delay(algo.batch_size_lst)
 

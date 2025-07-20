@@ -1,5 +1,6 @@
 import math
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from sympy import Float
@@ -568,6 +569,37 @@ class Algo:
         try:
             fld_mx, sld_s = max(fld), sum(sld)  # sl 是取总和，fl是取最大值
             return fld_mx, sld_s
+            # return fld,sld
+        except Exception as e:
+            print(e)
+            input("错误")
+
+    def cal_delay2(self,batch_size_lst = None):
+
+        self.fl_compute_delay, self.sl_compute_delay = self.cal_compute_delay(batch_size_lst)
+        self.fl_uplink_trans_delay, self.fl_download_trans_delay, self.sl_uplink_trans_delay, self.sl_download_trans_delay = self.cal_trans_delay(batch_size_lst)
+
+        fld, sld = [ut + dt + j for ut, dt, j in zip(self.fl_uplink_trans_delay, self.fl_download_trans_delay, self.fl_compute_delay)], \
+                   [ut + dt + j for ut, dt, j in zip(self.sl_uplink_trans_delay, self.sl_download_trans_delay, self.sl_compute_delay)]
+        self.fld,self.sld = fld,sld
+
+
+        fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
+
+        if batch_size_lst is None:
+            batch_size_lst = [len(i) for i in self.user_groups]
+        batch_size_lst = [i*self.batch_complier for i in batch_size_lst]
+
+        # 计算时延的上界，就是所有设备都训练全部模型的情况下的时延
+        tau_f = max([fl_Tau_lst[i]*batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)])
+        tmp = [sl_Tau_lst[i] *batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)]
+        tau_s = sum(tmp)
+
+        # 每个客户端的时延
+        try:
+            # fld_mx, sld_s = max(fld), sum(sld)  # sl 是取总和，fl是取最大值
+            # return fld_mx, sld_s
+            return fld,sld
         except Exception as e:
             print(e)
             input("错误")
@@ -625,14 +657,17 @@ class Algo:
 
     def batch_size_init(self):
         self.batch_size_lst = [len(i) for i in self.user_groups]
-        self.lambda_lst = [0.1] *len(self.user_groups)
-        self.mu = 0.1
+        # TODO 调参侠的胜利号角吹起
+        # mu_dic = {5000:9}
+        self.lambda_lst = [1] *len(self.user_groups)
+        self.mu = 9
 
-    def batch_size_decision(self,log = False,log2=False):
+    def batch_size_decision2(self, log=False, log2=False):
         # TODO rho2 暂定和rho1设定值相同
         # 如果这里的alpha_f很大，会导致第一次更新后lambda
-        alpha_f = 0.00005
-        alpha_s = 0.00005
+        alpha_f = 1
+        # alpha_s = 0.0000005
+        alpha_s = 1
         batch_min = 10
 
         # 上行速率是每个的带宽计算得到
@@ -647,21 +682,26 @@ class Algo:
         fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
 
         # 计算时延的上界，就是所有设备都训练全部模型的情况下的时延
-        tau_ub = max([len(self.user_groups[i])*fl_Tau_lst[i] + fl_Gamma_lst[i] for i in range(self.user_num)])    # SL 的求和和 FL 单体的最大值
-        tau_ub = max([tau_ub, sum([len(self.user_groups[i])*sl_Tau_lst[i] + sl_Gamma_lst[i] for i in range(self.user_num)])])    # SL 的求和和 FL 单体的最大值
+        tau_ub = max([len(self.user_groups[i]) * fl_Tau_lst[i] * self.batch_complier + fl_Gamma_lst[i] for i in
+                      range(self.user_num)])  # SL 的求和和 FL 单体的最大值
+        tau_ub = max([tau_ub,
+                      sum([len(self.user_groups[i]) * sl_Tau_lst[i] * self.batch_complier + sl_Gamma_lst[i] for i in
+                           range(self.user_num)])])  # SL 的求和和 FL 单体的最大值
 
-
-
-        tau_lb = max([fl_Tau_lst[i] + fl_Gamma_lst[i] for i in range(self.user_num)])    # SL 的求和和 FL 单体的最大值
-        tau_lb = max(tau_lb, sum([sl_Tau_lst[i] + sl_Gamma_lst[i] for i in range(self.user_num)]))    # SL 的求和和 FL 单体的最大值
+        tau_lb = max([fl_Tau_lst[i] + fl_Gamma_lst[i] for i in range(self.user_num)])  # SL 的求和和 FL 单体的最大值
+        tau_lb = max(tau_lb, sum([sl_Tau_lst[i] + sl_Gamma_lst[i] for i in range(self.user_num)]))  # SL 的求和和 FL 单体的最大值
 
         tau_gap = 1 - sum(self.lambda_lst) - self.mu
 
         cnt = 0
         ut_lst = []
         tau = tau_ub
-        tau_f = max([fl_Tau_lst[i]*self.batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)])
-        tau_s = sum([sl_Tau_lst[i] *self.batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)])
+        tau_f = max([fl_Tau_lst[i] * self.batch_size_lst[i] * self.batch_complier + fl_Gamma_lst[i] if self.fl_lst[
+                                                                                                           i] == 1 else 0
+                     for i in range(self.user_num)])
+        tau_s = sum([sl_Tau_lst[i] * self.batch_size_lst[i] * self.batch_complier + sl_Gamma_lst[i] if self.sl_lst[
+                                                                                                           i] == 1 else 0
+                     for i in range(self.user_num)])
         tau_star = tau if abs(tau_gap) < 0.00001 else (
             tau_ub if tau_gap > 0 else tau_lb
         )
@@ -678,75 +718,139 @@ class Algo:
         def tuyouhua():
             fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
             tau = cp.Variable()
-            gamma = -self.rho*(sum(self.sl_lst)*(sum(self.sl_lst)-1))
-            xi_lst = []
+            gamma = -self.rho * (sum(self.sl_lst) * (sum(self.sl_lst) - 1))
+            # xi_lst = []
+            # for i in range(self.user_num):
+            #     xi_lst.append(cp.Variable())
+            xi_lst = [cp.Variable() for _ in range(self.user_num)]  # 使用列表推导式来创建变量
+            objective = cp.Minimize(tau + gamma + self.rho2 * sum(cp.inv_pos(xi) for xi in xi_lst))  # 使用循环来构建目标函数
+            constants = []
+            sl_delay = 0
             for i in range(self.user_num):
-                xi_lst.append(cp.Variable())
-            objective = cp.Minimize(tau+gamma
-                                    +self.rho2*cp.inv_pos(xi_lst[0])
-                                    +self.rho2*cp.inv_pos(xi_lst[1])
-                                    +self.rho2*cp.inv_pos(xi_lst[2])
-                                    +self.rho2*cp.inv_pos(xi_lst[3])
-                                    +self.rho2*cp.inv_pos(xi_lst[4])
-                                    +self.rho2*cp.inv_pos(xi_lst[5])
-                                    +self.rho2*cp.inv_pos(xi_lst[6])
-                                    +self.rho2*cp.inv_pos(xi_lst[7])
-                                    +self.rho2*cp.inv_pos(xi_lst[8])
-                                    +self.rho2*cp.inv_pos(xi_lst[9])
-                                    +self.rho2*cp.inv_pos(xi_lst[10])
-                                    +self.rho2*cp.inv_pos(xi_lst[11])
-                                    +self.rho2*cp.inv_pos(xi_lst[12])
-                                    +self.rho2*cp.inv_pos(xi_lst[13])
-                                    +self.rho2*cp.inv_pos(xi_lst[14])
-                                    +self.rho2*cp.inv_pos(xi_lst[15])
-                                    +self.rho2*cp.inv_pos(xi_lst[16])
-                                    +self.rho2*cp.inv_pos(xi_lst[17])
-                                    +self.rho2*cp.inv_pos(xi_lst[18])
-                                    +self.rho2*cp.inv_pos(xi_lst[19])
-                                    +self.rho2*cp.inv_pos(xi_lst[20])
-                                    +self.rho2*cp.inv_pos(xi_lst[21])
-                                    +self.rho2*cp.inv_pos(xi_lst[22])
-                                    +self.rho2*cp.inv_pos(xi_lst[23])
-                                    +self.rho2*cp.inv_pos(xi_lst[24])
-                                    +self.rho2*cp.inv_pos(xi_lst[25])
-                                    +self.rho2*cp.inv_pos(xi_lst[26])
-                                    +self.rho2*cp.inv_pos(xi_lst[27])
-                                    +self.rho2*cp.inv_pos(xi_lst[28])
-                                    +self.rho2*cp.inv_pos(xi_lst[29])
-                                    )
+                constants.append(xi_lst[i] >= 10)
+                constants.append(xi_lst[i] <= len(self.user_groups[i]) * 0.8)
+                if self.fl_lst[i] == 1:
+                    fl_delay = fl_Tau_lst[i] * xi_lst[i] * self.batch_complier + fl_Gamma_lst[i]
+                    constants.append(fl_delay <= tau)
+                else:
+                    sl_delay += sl_Tau_lst[i] * xi_lst[i] * self.batch_complier + sl_Gamma_lst[i]
+            constants.append(sl_delay <= tau)
+            constants.append(tau <= tau_ub)
+            constants.append(tau >= tau_lb)
+            problem = cp.Problem(objective, constants)
+            problem.solve()
+            sl_delay = 0
+            for i in range(self.user_num):
+                if self.fl_lst[i] == 1:
+                    fl_delay = fl_Tau_lst[i] * xi_lst[i].value * self.batch_complier + fl_Gamma_lst[i]
+                    # print(fl_delay)
+                else:
+                    sl_delay += sl_Tau_lst[i] * xi_lst[i].value * self.batch_complier + sl_Gamma_lst[i]
+            # print(sl_delay)
+            return [np.mean(x.value) for x in xi_lst], np.mean(problem.value), tau.value
+
+        # TODO 目前这里只有1000了，应该要大一点
+        ut___lst = []
+        ut__lst = []
+        tau_gap_lst = []
+        solv1, solv2, tau_ = tuyouhua()
+        self.batch_size_lst = solv1
+
+    def batch_size_decision(self,epoch = 0,countt = 0,log = False,log2=False):
+        self.lambda_lst = [1] *len(self.user_groups)
+        self.mu = 9
+        ut_value,_=self.cal_ut()
+        # TODO rho2 暂定和rho1设定值相同
+        # 如果这里的alpha_f很大，会导致第一次更新后lambda
+        alpha_f = 0.000005
+        # alpha_s = 0.0000005
+        alpha_s = 0.000005
+        batch_min = 10
+
+        # 上行速率是每个的带宽计算得到
+        self.cal_commu_cap()
+
+        # # 初始化所有的用户的batch_size为1
+        # self.batch_size_init()
+
+        # xi的系数
+        # 对于FL computation_delay = xi*C(模型参数量) / f_{k,t} , Gamma = C(模型参数量) / f_{k,t}
+
+        fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
+
+        # 计算时延的上界，就是所有设备都训练全部模型的情况下的时延
+        tau_ub = max([len(self.user_groups[i])*fl_Tau_lst[i]*self.batch_complier + fl_Gamma_lst[i] for i in range(self.user_num)])    # SL 的求和和 FL 单体的最大值
+        tau_ub = max([tau_ub, sum([len(self.user_groups[i])*sl_Tau_lst[i]*self.batch_complier + sl_Gamma_lst[i] for i in range(self.user_num)])])    # SL 的求和和 FL 单体的最大值
+
+        tau_lb = max([fl_Tau_lst[i] + fl_Gamma_lst[i] for i in range(self.user_num)])    # SL 的求和和 FL 单体的最大值
+        tau_lb = max(tau_lb, sum([sl_Tau_lst[i] + sl_Gamma_lst[i] for i in range(self.user_num)]))    # SL 的求和和 FL 单体的最大值
+
+        tau_gap = 1 - sum(self.lambda_lst) - self.mu
+
+        cnt = 0
+        ut_lst = []
+        cnt = 1
+
+        fld, sld = self.cal_delay(self.batch_size_lst)
+        x = max(fld, sld)
+        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) * self.rho
+        z = sum(
+            [1 / xi * self.rho2 for xi in self.batch_size_lst])
+        ut_begin = x - y + z  # 归一化求解
+        batch_size_begin = self.batch_size_lst[:]
+
+        def tuyouhua():
+            fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
+            tau = cp.Variable()
+            gamma = -self.rho*(sum(self.sl_lst)*(sum(self.sl_lst)-1))
+            # xi_lst = []
+            # for i in range(self.user_num):
+            #     xi_lst.append(cp.Variable())
+            xi_lst = [cp.Variable() for _ in range(self.user_num)]  # 使用列表推导式来创建变量
+            objective = cp.Minimize(tau + gamma + self.rho2 * sum(cp.inv_pos(xi) for xi in xi_lst))  # 使用循环来构建目标函数
             constants = []
             sl_delay = 0
             for i in range(self.user_num):
                 constants.append(xi_lst[i]>=10)
                 constants.append(xi_lst[i]<=len(self.user_groups[i]) * 0.8)
                 if self.fl_lst[i]==1:
-                    constants.append(fl_Tau_lst[i]*xi_lst[i]+fl_Gamma_lst[i]<=tau)
+                    fl_delay = fl_Tau_lst[i]*xi_lst[i]*self.batch_complier+fl_Gamma_lst[i]
+                    constants.append(fl_delay<=tau)
                 else:
-                    sl_delay+=sl_Tau_lst[i]*xi_lst[i]+sl_Gamma_lst[i]
+                    sl_delay+=sl_Tau_lst[i]*xi_lst[i]*self.batch_complier+sl_Gamma_lst[i]
             constants.append(sl_delay<=tau)
             constants.append(tau<=tau_ub)
             constants.append(tau>=tau_lb)
             problem = cp.Problem(objective,constants)
             problem.solve()
-            # print()
-            # for i in range(self.user_num):
-            #     print(f"最优解:xi[{i}] = {xi_lst[i].value}, ",end="")
-            # print()
-            # print(f"最优值：z = {problem.value}")
-            # print(f"最优值：tau = {tau.value}, tau_lb = {tau_lb}")
-            return [np.mean(x.value) for x in xi_lst],np.mean(problem.value)
+            sl_delay = 0
+            for i in range(self.user_num):
+                if self.fl_lst[i]==1:
+                    fl_delay = fl_Tau_lst[i]*xi_lst[i].value*self.batch_complier+fl_Gamma_lst[i]
+                    # print(fl_delay)
+                else:
+                    sl_delay+=sl_Tau_lst[i]*xi_lst[i].value*self.batch_complier+sl_Gamma_lst[i]
+            # print(sl_delay)
+            return [np.mean(x.value) for x in xi_lst],np.mean(problem.value),tau.value
         # TODO 目前这里只有1000了，应该要大一点
         ut___lst = []
         ut__lst = []
         tau_gap_lst = []
-        solv1, solv2 = tuyouhua()
-        while abs(tau_gap) > 0.000001 and cnt <10000:
-            # 防止陷入死循环，如果没有fl用户或者有fl用户但是最大的lambda就是0.00001（即所有lambda值都更新为最小值） 且 mu值都更新为最小值或者sl用户为空
-            # 如果这里出现了一千次，可以认定为收敛了
+        gap____= ut_begin * pow(10,-8)
+        # while abs(tau_gap) > gap____ and cnt <1000000:
+        lambda_lss = [[] for _ in range(self.user_num)]
+        mu_lss = []
+        tau_s_lst = []
+        tau_f_lst = []
+        while cnt <5000:
             ut_new_value,_ = self.cal_ut()
+            # TODO：下面是两种决策方式
+            # 方式一
             # if ut_new_value>=ut_begin:
             #     self.batch_size_lst = batch_size_begin[:]
             # else:
+            #     ut_begin = ut_new_value
+            # 方式二
             ut_begin = ut_new_value
             batch_size_begin = self.batch_size_lst[:]
             ut_lst.append((sum(self.batch_size_lst),tau_gap ,ut_begin))
@@ -770,29 +874,42 @@ class Algo:
             # self.mu = max(0.00001,self.mu + alpha_s*(sum([sl_Tau_lst[i]*self.batch_size_lst[i] for i in range(self.user_num)]) - tau_star))
 
 
-            self.lambda_lst = [max(0.00001,
-                                   self.lambda_lst[i] + alpha_f*(fl_Tau_lst[i]*self.batch_size_lst[i]- tau_star)) if self.fl_lst[i]!=0 else self.lambda_lst[i] for i in range(self.user_num)]
-            self.mu = max(0.00001,self.mu + alpha_s*(sum([sl_Tau_lst[i]*self.batch_size_lst[i] for i in range(self.user_num)]) - tau_star))
-
             # 当前实际的tau值，最后更新
-            tau_f = max([fl_Tau_lst[i]*self.batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)])
-            tau_s = sum([sl_Tau_lst[i] *self.batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)])
-            tau = max(max([fl_Tau_lst[i]*self.batch_size_lst[i]+fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)]),
-                      sum([sl_Tau_lst[i] *self.batch_size_lst[i] + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)]))  # SL 的求和和 FL 单体的最大值
+            tau_f = max([fl_Tau_lst[i]*self.batch_size_lst[i]*self.batch_complier + fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)])
+            tau_f_min = max([fl_Tau_lst[i]*self.batch_size_lst[i]*self.batch_complier + fl_Gamma_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)])
+            tau_s = sum([sl_Tau_lst[i] *self.batch_size_lst[i]*self.batch_complier + sl_Gamma_lst[i] if self.sl_lst[i]==1 else 0 for i in range(self.user_num)])
+            tau = max(tau_f,
+                      tau_s)  # SL 的求和和 FL 单体的最大值
+            tau_s_lst.append(tau_s)
+            tau_f_lst.append(tau_f)
             tau_gap = 1 - sum([self.lambda_lst[i] if self.fl_lst[i]==1 else 0 for i in range(self.user_num)]) - self.mu
-            tau_star = tau if abs(tau_gap) < 0.00001 else (
+            tau_star = tau if abs(tau_gap) < 0.1 else (
                 tau_ub if tau_gap<0 else tau_lb
             )
+            mu_gap = 0
+            for ind,lam in enumerate(self.lambda_lst):
+                if self.fl_lst[ind]!=0:
+                    self.lambda_lst[ind] = (
+                        max(0.000000001,self.lambda_lst[ind]
+                            + alpha_f*(fl_Tau_lst[ind]*self.batch_size_lst[ind]*self.batch_complier+fl_Gamma_lst[ind] - tau_s)))
+                else:
+                    mu_gap += sl_Tau_lst[ind]*self.batch_size_lst[ind]*self.batch_complier+sl_Gamma_lst[ind]
+            self.mu+=alpha_s*(mu_gap-tau_f)
+            self.mu = max(0.000000001,self.mu)
+
+            # tau_star = tau if abs(tau_gap) < 0.00001 else (
 
             alpha_s-=0.0000000000000000001
             alpha_f-=0.0000000000000000001
             ut___lst.append(ut_begin)
             ut__lst.append(ut_new_value)
             tau_gap_lst.append(tau_gap)
-            for i in range(self.user_num):
-                f1 = "%10.3f" % solv1[i]
-                f2 = "%10.3f" % self.batch_size_lst[i]
-                print(f"设备[{i}][{'FL设备' if self.fl_lst[i]==1 else 'SL设备'}]\t 凸优化最优解：{f1},\t 次梯度下降最优解： {f2},\t 差距: {round(solv1[i] - self.batch_size_lst[i],3)}")
+            [lambda_lss[i].append(self.lambda_lst[i]) for i in range(self.user_num)]
+            mu_lss.append(self.mu)
+            # for i in range(self.user_num):
+            #     f1 = "%10.3f" % solv1[i]
+            #     f2 = "%10.3f" % self.batch_size_lst[i]
+            #     print(f"设备[{i}][{'FL设备' if self.fl_lst[i]==1 else 'SL设备'}]\t 凸优化最优解：{f1},\t 次梯度下降最优解： {f2},\t 差距: {round(solv1[i] - self.batch_size_lst[i],3)}")
 
 
             # if cnt == 20:
@@ -800,17 +917,61 @@ class Algo:
 
             # if ((max(self.lambda_lst)==0.00001 or sum(self.fl_lst)==0) and (self.mu == 0.00001 or sum(self.sl_lst)==0)) or  min(self.batch_size_lst)==batch_min or max(self.batch_size_lst) == max(self.user_groups):
             #     break
-        with open("../save/output/conference/gradient.csv", 'w') as f:
-            f.write(",".join([str(i) for i in ut___lst]))
-        with open("../save/output/conference/gradient_origin.csv", 'w') as f:
-            f.write(",".join([str(i) for i in ut__lst]))
-        with open("../save/output/conference/tau_gap.csv", 'w') as f:
-            f.write(",".join([str(i) for i in tau_gap_lst]))
-        ut_new_value,_ = self.cal_ut()
+        # for i in range(self.user_num):
+        #     if self.fl_lst[i] == 1:
+        #         plt.plot(range(len(lambda_lss[i])),lambda_lss[i],label=f"FL[{i}]")
+        # plt.legend()
+        # plt.show()
+        #
+        # plt.plot(range(len(mu_lss)),mu_lss)
+        # plt.show()
+        # plt.plot(range(len(tau_s_lst)),tau_s_lst)
+        # plt.title("SL delay changing")
+        # plt.show()
+        # plt.plot(range(len(tau_f_lst)),tau_f_lst)
+        # plt.title("FL delay changing")
+        # plt.show()
+        # plt.plot(range(len(tau_f_lst)),tau_f_lst,label = "FL")
+        # plt.plot(range(len(tau_s_lst)),tau_s_lst,label = "SL")
+        # plt.title("Delay changing")
+        # plt.show()
+
+        # with open(f"../save/output/conference/new_gradient[{epoch}][{countt}]_rho1[{self.rho}]rho2[{self.rho2}]", 'w') as f:
+        #     f.write(",".join([str(i) for i in ut___lst]))
+        # with open("../save/output/conference/gradient_origin.csv", 'w') as f:
+        #     f.write(",".join([str(i) for i in ut__lst]))
+        # with open("../save/output/conference/tau_gap.csv", 'w') as f:
+        #     f.write(",".join([str(i) for i in tau_gap_lst]))
+        ut_new_value,delay_ = self.cal_ut()
+        sl_delay__= 0
+        # for i in range(self.user_num):
+        #     f1 = "%10.3f" % solv1[i]
+        #     f2 = "%10.3f" % self.batch_size_lst[i]
+        #     if self.fl_lst[i]==1:
+        #         a_delay = fl_Tau_lst[i]*self.batch_size_lst[i]*self.batch_complier + fl_Gamma_lst[i]
+        #         b_delay = fl_Tau_lst[i]*solv1[i]*self.batch_complier+fl_Gamma_lst[i]
+        #     else:
+        #         a_delay = sl_Tau_lst[i]*self.batch_size_lst[i]*self.batch_complier + sl_Gamma_lst[i]
+        #         b_delay = sl_Tau_lst[i]*solv1[i]*self.batch_complier+sl_Gamma_lst[i]
+        #         sl_delay__+=a_delay
+        #
+        #     print(
+        #         f"设备[{i}][{'FL设备' if self.fl_lst[i] == 1 else 'SL设备'}]\t 凸优化最优解：{f1},\t 次梯度下降最优解： {f2},\t "
+        #         f"差距: {round(solv1[i] - self.batch_size_lst[i], 3)}. \t\t  , 凸优化时延[{b_delay}] ,次梯度时延[{a_delay}]", f"总的batchsize[{len(self.user_groups[i])*0.8}]")
+
+        # solv1, solv2,tau_ = tuyouhua()
+        # batch_size_begin = self.batch_size_lst[:]
+        # self.batch_size_lst = solv1
+        # ut_aa_value,delay_aa= self.cal_ut()
+        # print(f"凸优化最优目标函数值[{solv2}],凸优化最优目标函数值自己计算[{ut_aa_value}]，次梯度下降最有目标函数值[{ut_new_value}]")
+        # print(f"凸优化时延[{tau_}],凸优化时延自己算[{delay_aa}]，次梯度下降时延[{delay_}], 次梯度分割时延[{sl_delay__}]")
+        # self.batch_size_lst = batch_size_begin[:]
         if log2:
-            solv1, solv2 = tuyouhua()
+            solv1, solv2,tau = tuyouhua()
+            batch_size_begin = self.batch_size_lst[:]
             self.batch_size_lst = solv1
             ut_aa_value,_ = self.cal_ut()
+            self.batch_size_lst = batch_size_begin[:]
             # print(f"凸优化目标函数值:{ut_aa_value} ，次梯度下降目标函数值： {ut_new_value}")
 
             with open(f"../save/output/conference/local_cnt[1]_user30_rho1[{self.rho}]_rho2[{self.rho2}]_alpha[{self.alpha}].csv",
@@ -821,7 +982,6 @@ class Algo:
         #     self.batch_size_lst = batch_size_begin[:]
         # else:
         ut_begin = ut_new_value
-        batch_size_begin = self.batch_size_lst[:]
         ut_lst.append((sum(self.batch_size_lst),tau_gap ,ut_begin))
         if log:
             with open("../save/output/conference/cmpResult/sigma/batch/new_new_new_sigma_" + str(0.001) + f"rho2_{self.rho2}.csv", 'w') as f:
@@ -830,16 +990,103 @@ class Algo:
 
         # logger.debug("done")
 
+
+    def batch_size_decision2(self,epoch = 0,countt = 0,log = False,log2=False):
+        self.lambda_lst = [1] *len(self.user_groups)
+        self.mu = 9
+        ut_value,_=self.cal_ut()
+        # TODO rho2 暂定和rho1设定值相同
+        # 如果这里的alpha_f很大，会导致第一次更新后lambda
+        alpha_f = 0.000005
+        # alpha_s = 0.0000005
+        alpha_s = 0.000005
+        batch_min = 10
+
+        # 上行速率是每个的带宽计算得到
+        self.cal_commu_cap()
+
+        # # 初始化所有的用户的batch_size为1
+        # self.batch_size_init()
+
+        # xi的系数
+        # 对于FL computation_delay = xi*C(模型参数量) / f_{k,t} , Gamma = C(模型参数量) / f_{k,t}
+
+        fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
+
+        # 计算时延的上界，就是所有设备都训练全部模型的情况下的时延
+        tau_ub = max([len(self.user_groups[i])*fl_Tau_lst[i]*self.batch_complier + fl_Gamma_lst[i] for i in range(self.user_num)])    # SL 的求和和 FL 单体的最大值
+        tau_ub = max([tau_ub, sum([len(self.user_groups[i])*sl_Tau_lst[i]*self.batch_complier + sl_Gamma_lst[i] for i in range(self.user_num)])])    # SL 的求和和 FL 单体的最大值
+
+        tau_lb = max([fl_Tau_lst[i] + fl_Gamma_lst[i] for i in range(self.user_num)])    # SL 的求和和 FL 单体的最大值
+        tau_lb = max(tau_lb, sum([sl_Tau_lst[i] + sl_Gamma_lst[i] for i in range(self.user_num)]))    # SL 的求和和 FL 单体的最大值
+
+        tau_gap = 1 - sum(self.lambda_lst) - self.mu
+
+        cnt = 0
+        ut_lst = []
+        cnt = 1
+
+        fld, sld = self.cal_delay(self.batch_size_lst)
+        x = max(fld, sld)
+        y = (sum(self.sl_lst) * (sum(self.sl_lst) - 1)) * self.rho
+        z = sum(
+            [1 / xi * self.rho2 for xi in self.batch_size_lst])
+        ut_begin = x - y + z  # 归一化求解
+        batch_size_begin = self.batch_size_lst[:]
+
+        def tuyouhua():
+            fl_Tau_lst, sl_Tau_lst, fl_Gamma_lst, sl_Gamma_lst = self.cal_Tau_Gamma()
+            tau = cp.Variable()
+            gamma = -self.rho*(sum(self.sl_lst)*(sum(self.sl_lst)-1))
+            # xi_lst = []
+            # for i in range(self.user_num):
+            #     xi_lst.append(cp.Variable())
+            xi_lst = [cp.Variable() for _ in range(self.user_num)]  # 使用列表推导式来创建变量
+            objective = cp.Minimize(tau + gamma + self.rho2 * sum(cp.inv_pos(xi) for xi in xi_lst))  # 使用循环来构建目标函数
+            constants = []
+            sl_delay = 0
+            for i in range(self.user_num):
+                constants.append(xi_lst[i]>=10)
+                constants.append(xi_lst[i]<=len(self.user_groups[i]) * 0.8)
+                if self.fl_lst[i]==1:
+                    fl_delay = fl_Tau_lst[i]*xi_lst[i]*self.batch_complier+fl_Gamma_lst[i]
+                    constants.append(fl_delay<=tau)
+                else:
+                    sl_delay+=sl_Tau_lst[i]*xi_lst[i]*self.batch_complier+sl_Gamma_lst[i]
+            constants.append(sl_delay<=tau)
+            constants.append(tau<=tau_ub)
+            constants.append(tau>=tau_lb)
+            problem = cp.Problem(objective,constants)
+            problem.solve()
+            sl_delay = 0
+            for i in range(self.user_num):
+                if self.fl_lst[i]==1:
+                    fl_delay = fl_Tau_lst[i]*xi_lst[i].value*self.batch_complier+fl_Gamma_lst[i]
+                    # print(fl_delay)
+                else:
+                    sl_delay+=sl_Tau_lst[i]*xi_lst[i].value*self.batch_complier+sl_Gamma_lst[i]
+            # print(sl_delay)
+            return [np.mean(x.value) for x in xi_lst],np.mean(problem.value),tau.value
+
+        solv1, solv2,tau_ = tuyouhua()
+        self.batch_size_lst = solv1
+
+
+
     def round(self):
+        ut_value_lst = []
         ut_new_value, max_delay = self.cal_ut()
+        ut_value_lst.append(ut_new_value)
 
         print("before round, ut value: ", ut_new_value)
         batch_lst = []
+        origin_batch_lst = self.batch_size_lst[:]
         for i in range(len(self.batch_size_lst)):
             self.batch_size_lst[i] = int(self.batch_size_lst[i])
             batch_lst.append((i, self.batch_size_lst[i]))
 
         ut_new_value, _ = self.cal_ut()
+        ut_value_lst.append(ut_new_value)
 
         print("after floor, ut value: ", ut_new_value)
 
@@ -847,15 +1094,19 @@ class Algo:
         while sld < max_delay:
             sign = True
             batch_lst.sort(key=lambda x: x[1])
-            for ind, batch_size in batch_lst:
+            for id,(ind, batch_size) in enumerate(batch_lst):
                 self.batch_size_lst[ind] = batch_size
                 if sign and self.sl_lst[ind] != 0:
                     self.batch_size_lst[ind] += 1
+                    batch_lst[id] = (ind,batch_size+1)
                     sign = False
             fld, sld = self.cal_delay(self.batch_size_lst)
 
         ut_new_value, _ = self.cal_ut()
-        print("after floor, ut value: ", ut_new_value)
+        print("after round, ut value: ", ut_new_value)
+        ut_value_lst.append(ut_new_value)
+        self.batch_size_lst = origin_batch_lst[:]
+        return ut_value_lst
 
     def generate_non_iid_dirichlet(self,trainset, num_datasets=20,alpha = 1):
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=len(trainset), shuffle=False)

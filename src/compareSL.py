@@ -21,6 +21,9 @@ from alog import Algo
 import common
 
 rho,rho2,alpha = common.get_rho()
+alpha = 0.1
+# alpha = 1
+# alpha = 10
 
 if __name__ == '__main__':
     if True:
@@ -41,7 +44,7 @@ if __name__ == '__main__':
 
         args = args_parser()
         exp_details(args)
-        args.epochs = 100
+        args.epochs = 6000
 
         # if args.gpu:
         #     torch.cuda.set_device(args.gpu)
