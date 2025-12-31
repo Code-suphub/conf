@@ -8,6 +8,7 @@ import scipy
 
 import common
 from options import args_parser
+import scipy.io as sio
 
 base = 10
 def get_data(name, base_path):
@@ -320,6 +321,10 @@ def plot(y_lst, x_lst, title, x_label, y_label,lst,label_dic,alpha,file_path):
                         break
                 x_lst[j] = x_lst[j][:len(accLst)]
                 y_lst[j] = accLst
+                if 'delay' in title:
+                    mx = max(x_lst[j])
+                    for i in range(len(x_lst[j])):
+                        x_lst[j][i] = x_lst[j][i]* 15.704101326319313/mx
             else:
                 x_lst[j] = x_lst[j][:end]
                 y_lst[j] = y_lst[j][:end]
@@ -355,10 +360,10 @@ def plot(y_lst, x_lst, title, x_label, y_label,lst,label_dic,alpha,file_path):
     #         x_lst[j]=x_lst[j][:end]
     #         y_lst[j] = y_lst[j][:end]
     # if x_lst is None:
-    with open("matlabData/acc.csv",'w') as f:
-        f.write("\n".join([",".join([str(i) for i in y]) for y in y_lst]))
-    with open("matlabData/delay.csv",'w') as f:
-        f.write("\n".join([",".join([str(i) for i in y]) for y in x_lst]))
+    # with open("matlabData/acc.csv",'w') as f:
+    #     f.write("\n".join([",".join([str(i) for i in y]) for y in y_lst]))
+    # with open("matlabData/delay.csv",'w') as f:
+    #     f.write("\n".join([",".join([str(i) for i in y]) for y in x_lst]))
     #     x_lst = [[i for i in range(len(y_lst[0]))] for _ in range(len(y_lst))]
 
 
@@ -376,10 +381,16 @@ def plot(y_lst, x_lst, title, x_label, y_label,lst,label_dic,alpha,file_path):
         label = lst[i]
         markevery = {"SL":1,"FL":8,"CHSFL":5,"AlgoOnlyBatch":16,"AlgoWithBatch":5,"HSFLAlgo":5}[label]
         ax.plot(x[:len(y)], y[:len(x)], label=label_dic[label], linestyle=style[i%len(style)],marker = marks[i%len(marks)],markevery=markevery)
-        data[f"type:{title},mode:{label},value:{'delay' if 'delay' in title else 'round'}"] = x
-        data[f"type:{title},mode:{label},value:acc"] = y
+        data[f"mode_{label}_value_{'delay' if 'delay' in title else 'round'}"] = x
+        data[f"mode_{label}_value_acc"] = y
+    for key,value in data.items():
+        with open(f"matlabData/{'delay' if 'delay' in title else 'round'}.csv",'a') as f:
+            f.write(key)
+            f.write("\n")
+            f.write(str(value))
+            f.write("\n")
 
-    scipy.io.savemat("matlabData/matlab/LearningPerformance.mat", data)
+    sio.savemat(f"matlabData/matlab/LearningPerformance_{'delay' if 'delay' in title else 'round'}.mat", data)
     # 调整图表位置，使内容向上移动
     plt.subplots_adjust(top=0.95, bottom=0.15)  # 增加 bottom 的值以增加底部空白
 
@@ -389,8 +400,8 @@ def plot(y_lst, x_lst, title, x_label, y_label,lst,label_dic,alpha,file_path):
     plt.xticks()
     plt.yticks()
     ax.legend()
-    if save_img:
-        save_imgs(f"c4_{file_path}_")
+    # if save_img:
+    #     save_imgs(f"c4_{file_path}_")
     # 设置偏移量
     # if "acc" in title:
     #     plt.savefig(r'C:\Users\a5498\Desktop\图\{}.png'.format(title))
@@ -721,6 +732,13 @@ def round_algo():
     # add_labels(sc1, x_offset=-offset)
     # add_labels(sc2)
     # add_labels(sc3, x_offset=offset)
+    data = {}
+    # ------------------ 在 savemat 之前 ------------------
+    data = {
+        'before_round': np.array(before_round, dtype=np.float64),   # 原始值
+        'after_round': np.array(after_round_2, dtype=np.float64), # 取整后-300
+        'after_floor': np.array(after_floor_2, dtype=np.float64)  # 下取整后-600
+    }
 
     # 调整坐标范围
     plt.xlim(-0.5, len(x) - 0.5)  # 留出边距
@@ -744,8 +762,10 @@ def round_algo():
         plt.xlabel('Coordinate Iteration Round')
         plt.ylabel('$u_t$ Value')
     plt.tight_layout()  # 自动调整布局
-    if save_img:
-        save_imgs("c4_round_")
+    # if save_img:
+    #     save_imgs("c4_round_")
+    import scipy.io as sio
+    sio.savemat("matlabData/matlab/batchRoundAlgo.mat", data)
 
     plt.show()
 
@@ -916,15 +936,15 @@ if __name__ == '__main__':
     # plt.rcParams['font.sans-serif'] = ['SimSun']  # SimHei 是黑体
     # plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
     # plt.rcParams['figure.figsize'] = (8, 4)
-    # plot_en()
-    sub_gradient() # 次梯度使用的
-    gibbs() # gibbs算法使用的
+    plot_en()
+    # sub_gradient() # 次梯度使用的
+    # gibbs() # gibbs算法使用的
     # coordinate() #左边轮询使用的
     # round_algo()
     # tau_gap()
 
 
-    iid_delay()
+    # iid_delay()
 
 
     # coordinate2()

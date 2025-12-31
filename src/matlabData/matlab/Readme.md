@@ -40,6 +40,13 @@
 - 本文件中
   - label 就是(rho1,rho2) 的组合
   - 序列值就是迭代中每个周期的目标函数值
+```angular2html
+   'rho1:3,rho2:50'  ->  'rho1_3_rho2_50'
+   'rho1:5,rho2:50'  ->  'rho1_5_rho2_50'
+   'rho1:5,rho2:500'  ->  'rho1_5_rho2_500'
+   'rho1:5,rho2:5000'  ->  'rho1_5_rho2_5000'
+   'rho1:7,rho2:5000'  ->  'rho1_7_rho2_5000'
+```
 
 # subgradient.mat
 - 本文件中
@@ -50,27 +57,86 @@
 - 本文件中
   - label 就是第几次坐标轮训
   - 序列值就是每次gibbs算法迭代中的目标函数值
+```angular2html
+   'coordinate round 0'  ->  'coordinate_round_0'
+   'coordinate round 1'  ->  'coordinate_round_1'
+   'coordinate round 2'  ->  'coordinate_round_2'
+   'coordinate round 3'  ->  'coordinate_round_3'
+   'coordinate round 4'  ->  'coordinate_round_4'
+```
 
 
 # LearningPerformance.mat
 - 本文件中
   - label 就是当前是accVsRound还是accVsDelay以及是横轴的round数目/delay 还是纵轴的test acc
   - 序列值就是test acc
+```angular2html
+   'type:Test accuracy vs round with non-iid param[1],mode:SL,value:round'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_SL_value_round'
+   'type:Test accuracy vs round with non-iid param[1],mode:SL,value:acc'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_SL_value_acc'
+   'type:Test accuracy vs round with non-iid param[1],mode:FL,value:round'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_FL_value_round'
+   'type:Test accuracy vs round with non-iid param[1],mode:FL,value:acc'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_FL_value_acc'
+   'type:Test accuracy vs round with non-iid param[1],mode:CHSFL,value:round'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_CHSFL_value_round'
+   'type:Test accuracy vs round with non-iid param[1],mode:CHSFL,value:acc'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_CHSFL_value_acc'
+   'type:Test accuracy vs round with non-iid param[1],mode:AlgoOnlyBatch,value:round'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_AlgoOnlyBatch_value_round'
+   'type:Test accuracy vs round with non-iid param[1],mode:AlgoOnlyBatch,value:acc'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_AlgoOnlyBatch_value_acc'
+   'type:Test accuracy vs round with non-iid param[1],mode:AlgoWithBatch,value:round'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_AlgoWithBatch_value_round'
+   'type:Test accuracy vs round with non-iid param[1],mode:AlgoWithBatch,value:acc'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_AlgoWithBatch_value_acc'
+   'type:Test accuracy vs round with non-iid param[1],mode:HSFLAlgo,value:round'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_HSFLAlgo_value_round'
+   'type:Test accuracy vs round with non-iid param[1],mode:HSFLAlgo,value:acc'  ->  'type_Test_accuracy_vs_round_with_non_iid_param_1__mode_HSFLAlgo_value_acc'
+```
 
 # batchRoundAlgo.mat
 - 其中label 就是 当前的 ut 值是 before floor/ after floor / after_round ,之后的rho1是y轴,rho2是x轴
 - 值是当前组合和状态下的ut值
+```angular2html
+'before_rho1_500,rho2_3'  ->  'before_rho1_500_rho2_3'
+   'floor_rho1_500,rho2_3'  ->  'floor_rho1_500_rho2_3'
+   'after_rho1_500,rho2_3'  ->  'after_rho1_500_rho2_3'
+   'before_rho1_2000,rho2_3'  ->  'before_rho1_2000_rho2_3'
+   'floor_rho1_2000,rho2_3'  ->  'floor_rho1_2000_rho2_3'
+   'after_rho1_2000,rho2_3'  ->  'after_rho1_2000_rho2_3'
+   'before_rho1_5000,rho2_3'  ->  'before_rho1_5000_rho2_3'
+   'floor_rho1_5000,rho2_3'  ->  'floor_rho1_5000_rho2_3'
+   'after_rho1_5000,rho2_3'  ->  'after_rho1_5000_rho2_3'
+   'before_rho1_500,rho2_4'  ->  'before_rho1_500_rho2_4'
+   'floor_rho1_500,rho2_4'  ->  'floor_rho1_500_rho2_4'
+   'after_rho1_500,rho2_4'  ->  'after_rho1_500_rho2_4'
+   'before_rho1_2000,rho2_4'  ->  'before_rho1_2000_rho2_4'
+   'floor_rho1_2000,rho2_4'  ->  'floor_rho1_2000_rho2_4'
+   'after_rho1_2000,rho2_4'  ->  'after_rho1_2000_rho2_4'
+   'before_rho1_5000,rho2_4'  ->  'before_rho1_5000_rho2_4'
+   'floor_rho1_5000,rho2_4'  ->  'floor_rho1_5000_rho2_4'
+   'after_rho1_5000,rho2_4'  ->  'after_rho1_5000_rho2_4'
+   'before_rho1_500,rho2_5'  ->  'before_rho1_500_rho2_5'
+   'floor_rho1_500,rho2_5'  ->  'floor_rho1_500_rho2_5'
+   'after_rho1_500,rho2_5'  ->  'after_rho1_500_rho2_5'
+   'before_rho1_2000,rho2_5'  ->  'before_rho1_2000_rho2_5'
+   'floor_rho1_2000,rho2_5'  ->  'floor_rho1_2000_rho2_5'
+   'after_rho1_2000,rho2_5'  ->  'after_rho1_2000_rho2_5'
+   'before_rho1_5000,rho2_5'  ->  'before_rho1_5000_rho2_5'
+   'floor_rho1_5000,rho2_5'  ->  'floor_rho1_5000_rho2_5'
+   'after_rho1_5000,rho2_5'  ->  'after_rho1_5000_rho2_5'
+   'before_rho1_500,rho2_6'  ->  'before_rho1_500_rho2_6'
+   'floor_rho1_500,rho2_6'  ->  'floor_rho1_500_rho2_6'
+   'after_rho1_500,rho2_6'  ->  'after_rho1_500_rho2_6'
+   'before_rho1_2000,rho2_6'  ->  'before_rho1_2000_rho2_6'
+   'floor_rho1_2000,rho2_6'  ->  'floor_rho1_2000_rho2_6'
+   'after_rho1_2000,rho2_6'  ->  'after_rho1_2000_rho2_6'
+   'before_rho1_5000,rho2_6'  ->  'before_rho1_5000_rho2_6'
+   'floor_rho1_5000,rho2_6'  ->  'floor_rho1_5000_rho2_6'
+   'after_rho1_5000,rho2_6'  ->  'after_rho1_5000_rho2_6'
+```
 
 
-# iid.mat
+# iid_cmp.mat
 - 其中 label 就是 当前的柱状图是处于哪一个准确度,以及当前准确度下非独立同分布系数alpha是几
 - 值是当前准确度和非独立同分布系数下达到目标准确度所需要的时延值
+```angular2html
+   'acc=0.55&$\\alpha$=0.1'  ->  'acc_0_55___alpha__0_1'
+   'acc=0.55&$\\alpha$=1'  ->  'acc_0_55___alpha__1'
+   'acc=0.55&$\\alpha$=10'  ->  'acc_0_55___alpha__10'
+   'acc=0.5&$\\alpha$=1'  ->  'acc_0_5___alpha__1'
+   'acc=0.5&$\\alpha$=10'  ->  'acc_0_5___alpha__10'
+```
 
-
-
-
-
-李雪飞同学在攻读硕士学位期间，在思想品德、学习态度、专业知识、实践能力等方面均表现出色：该生政治立场坚定，积极拥护党的领导，践行社会主义核心价值观，具有高度的社会责任感和使命感；学习态度端正，勤奋刻苦，具有强烈的求知欲和上进心；具备扎实的专业基础知识，对所学专业领域的前沿动态和发展趋势有较为深入的了解；在课题研究中，能够熟练运用所学的专业理论和方法，解决具体问题；具备独立承担和出色完成专门工作的能力，在面对各项复杂且具有挑战性的任务时，能够迅速理清思路，制定合理的工作计划，并高效执行。
-
-该生在英语能力表现较为良好，能够流利的进行英文文献的阅读，并可以进行
 

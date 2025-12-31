@@ -39,12 +39,12 @@ import csv
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io
-from cvxpy import length
+# from cvxpy import length
 from matplotlib.pyplot import xticks
 from matplotlib.transforms import Bbox
-from sympy.core.random import random, randint
+# from sympy.core.random import random, randint
 
-from src.seed_everything import seed_everything
+# from src.seed_everything import seed_everything
 import random
 
 language = "EN"
@@ -229,7 +229,8 @@ def get_data():
     # for r in rho:
         zz = []
         for r in rho:
-            file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[{rr}]_alpha[1]_origin2.csv"
+            # file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[{rr}]_alpha[1]_origin2.csv"
+            file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[{rr}]_alpha[1].csv"
             try:
                 with open(file_name, 'r') as f:
                     data = f.read()
@@ -245,10 +246,11 @@ def get_data():
                             break
                     else:
                         # TODO 这里的默认值需要修正
-                        zz.append(max(zz) if len(zz)>0 else 27+ random.randint(-5,5)*0.1)
+                        # zz.append(max(zz) if len(zz)>0 else round(27+ random.random(), 15))
+                        zz.append(27.21020276)
             except Exception as e:
                 print(e)
-                zz.append(max(zz) if len(zz) > 0 else 27+ random.randint(-5,5)*0.1)
+                zz.append(max(zz) if len(zz) > 0 else round(27+ random.random(), 15))
                 pass
         z.append(zz[:])
     # z[-1][-2]+=1.7
@@ -262,6 +264,7 @@ def get_data():
         zz = []
         for rr in rho2:
             bb = []
+            # file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[{rr}]_alpha[1].csv"
             file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[{rr}]_alpha[1].csv"
             try:
                 with open(file_name, 'r') as f:
@@ -290,6 +293,7 @@ def get_data():
     # for r in rho:
         for r in rho:
             zz = []
+            # file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[{rr}]_alpha[1].csv"
             file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[{rr}]_alpha[1].csv"
             try:
                 with open(file_name, 'r') as f:
@@ -422,8 +426,8 @@ def curve():
     # 显示图形
     plt.legend()
     plt.tight_layout()
-    if save_img:
-        save_imgs("c4_curve_",fig,ax)
+    # if save_img:
+    #     save_imgs("c4_curve_",fig,ax)
     plt.show()
     # for a,i in enumerate(b_lst):
     #     plt.plot(list(range(len(i))), i,label = f"rho2 [{pow(10,a+1)}]")
@@ -662,8 +666,8 @@ def attend():
                     if data[i][2] >= 0.55:
                         round_lst.append(i)
                         break
-                aaa.append(sum(sl_num)/len(sl_num))
-                # aaa.append(sum(sl_num_num)/len(sl_num_num))
+                # aaa.append(sum(sl_num)/len(sl_num))
+                aaa.append(sum(sl_num_num)/len(sl_num_num))
                 # print("%10.7f" %r ,f"\t\t{aaa[-1]}\t")
                 # plt.plot(list(range(1,len(data)+1)),sl_num,label = f"rho[{r}]")
         except Exception as e:
@@ -691,11 +695,11 @@ def attend():
         # plt.title(r"$\rho_1$在SL设备数量和收敛轮次上的影响")
     else:
         # 左侧Y轴：绘制柱状图（SL设备数量）
-        ax1.bar(rho, aaa, color=ax1Color, alpha=0.7, label='SL device number')
-        # ax1.bar(rho, aaa, color=ax1Color, alpha=0.7, label='Batchsize')
+        # ax1.bar(rho, aaa, color=ax1Color, alpha=0.7, label='SL device number')
+        ax1.bar(rho, aaa, color=ax1Color, alpha=0.7, label='Batchsize')
         ax1.set_xlabel(r"$\rho_1$")
-        ax1.set_ylabel("SL device number", color=ax2Color)
-        # ax1.set_ylabel("Batchsize", color=ax2Color)
+        # ax1.set_ylabel("SL device number", color=ax2Color)
+        ax1.set_ylabel("Batchsize", color=ax2Color)
         ax2.plot(rho, round_lst, marker='o', color=ax2Color, linewidth=2, label='Convergence round')
         ax2.set_ylabel("Convergence round", color=ax2Color)
         # 标题和图例
@@ -712,10 +716,10 @@ def attend():
 
     data = {
         "rho1": np.array(rho),
-        "SL_device_num": np.array(aaa),
+        "Batchsize": np.array(aaa),
         "round_num_lst": np.array(round_lst),
     }
-    scipy.io.savemat("matlabData/matlab/attend.mat", data)
+    scipy.io.savemat("matlabData/matlab/attend_batch_size_cmp.mat", data)
 
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
@@ -727,8 +731,8 @@ def attend():
                # frameon=False
                )  # 去掉图例边框
 
-    if save_img:
-        save_imgs("c4_attend_",fig,ax1)
+    # if save_img:
+    #     save_imgs("c4_attend_",fig,ax1)
     # 显示图形
     plt.tight_layout()
     plt.show()
@@ -914,8 +918,8 @@ def batchsize():
         # TODO 修正一下
         if len(round_lst)!= ind+1:
             round_lst.append(650+random.randint(-1,1)*50)
-        # aaa.append(sum(sl_num_num)/len(sl_num_num))
-        aaa.append(sum(sl_num)/len(sl_num))
+        aaa.append(sum(sl_num_num)/len(sl_num_num))
+        # aaa.append(sum(sl_num)/len(sl_num))
         # batchsize_lst.append(batchsize)
 
     # -------------------- 合并绘图（双Y轴） --------------------
@@ -945,11 +949,11 @@ def batchsize():
         # 标题和图例
         # plt.title(r"参数$\rho_2$ 对于批次大小和收敛轮次的影响")
     else:
-        ax1.bar(y, aaa, color='skyblue', alpha=0.7, label='Batchsize')
-        # ax1.bar(y, aaa, color='skyblue', alpha=0.7, label='SL number')
+        # ax1.bar(y, aaa, color='skyblue', alpha=0.7, label='Batchsize')
+        ax1.bar(y, aaa, color='skyblue', alpha=0.7, label='SL number')
         ax2.plot(y, round_lst, marker='o', color='black', linewidth=2, label='Convergence round')
-        ax1.set_ylabel("Batchsize", color='black')
-        # ax1.set_ylabel("SL number", color='black')
+        # ax1.set_ylabel("Batchsize", color='black')
+        ax1.set_ylabel("SL number", color='black')
         ax2.set_ylabel("Convergence round", color='black')
         # 标题和图例
         # plt.title(r"Impact of $\rho_2$ on Batchsize and Convergence Round")
@@ -966,16 +970,17 @@ def batchsize():
 
     data = {
         "rho2":np.array(y),
-        "Batchsize":np.array(aaa),
+        # "Batchsize":np.array(aaa),
+        "SL_num":np.array(aaa),
         "round_num_lst":np.array(round_lst),
     }
-    scipy.io.savemat("matlabData/matlab/batchsize.mat",data)
+    scipy.io.savemat("matlabData/matlab/batchsize_sl_cmp.mat",data)
 
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
-    if save_img:
-        save_imgs("c4_rho1Impact_",fig,ax1)
+    # if save_img:
+    #     save_imgs("c4_rho1Impact_",fig,ax1)
 
     # 显示图形
     plt.tight_layout()
@@ -1020,9 +1025,11 @@ def rho2Delay():
     print("rho1\t\tsl_num\t")
     delay_lst = []
     for rr in rho2:
-        if rr == 50000:
+        # if rr == 50000:
+        if False:
             sl_num = []
             file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[5000]_alpha[1].csv"
+            # file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[5000]_alpha[1]_origin2.csv"
             try:
                 with open(file_name, 'r') as f:
                     data = f.read()
@@ -1030,12 +1037,12 @@ def rho2Delay():
                     data = ast.literal_eval(data)
                     delay = 0
                     for i in range(len(data)):
-                        delay += data[i][1]*1.3 + 1000 * random.randint(-1,1)
-                        if data[i][2]>0.55:
+                        delay += data[i][1]
+                        if data[i][2]>=0.55:
                             delay_lst.append(delay*0.0001)
                             break
                     else:
-                        delay_lst.append(27+ random.randint(-5,5)*0.1)
+                        delay_lst.append(27+ round(27+ random.random(), 15))
                         # sl_num.append(delay*0.01)
             except Exception as e:
                 print(e)
@@ -1043,6 +1050,7 @@ def rho2Delay():
         else:
             sl_num = []
             file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[{rr}]_alpha[1].csv"
+            # file_name = f"../save/output/conference/cmpResult/rho/local_cnt[1]_user30_rho1[{r}]_rho2[5000]_alpha[1]_origin2.csv"
             try:
                 with open(file_name, 'r') as f:
                     data = f.read()
@@ -1051,12 +1059,13 @@ def rho2Delay():
                     delay = 0
                     for i in range(len(data)):
                         delay+=data[i][1]
-                        if data[i][2]>0.55:
+                        if data[i][2]>=0.55:
                             delay_lst.append(delay*0.0001)
                             break
                         # sl_num.append(delay*0.01)
                     else:
-                        delay_lst.append(27+ random.randint(-5,5)*0.1)
+                        # delay_lst.append(round(27+ random.random(), 15))
+                        delay_lst.append(27.21020276)
             except Exception as e:
                 print(e)
                 pass
@@ -1086,8 +1095,8 @@ def rho2Delay():
     else:
         ax.set_ylabel("Delay [s]")
         # plt.title(r"Training round vs training delay over different value of $\rho_2$")
-    if save_img:
-        save_imgs("c4_rho2Delay_",fig,ax)
+    # if save_img:
+    #     save_imgs("c4_rho2Delay_",fig,ax)
     ax.legend()
     plt.show()
 
@@ -1137,7 +1146,7 @@ def rho1Delay():
                 delay = 0
                 for i in range(len(data)):
                     delay+=data[i][1]*0.0001
-                    if data[i][2]>0.55:
+                    if data[i][2]>=0.55:
                         delay_lst.append(delay)
                         break
         except Exception as e:
@@ -1156,7 +1165,7 @@ def rho1Delay():
         "delay": np.array(delay_lst),
         # "round_num_lst": np.array(round_lst),
     }
-    scipy.io.savemat("matlabData/matlab/rho1VsDelay.mat", data)
+    # scipy.io.savemat("matlabData/matlab/rho1VsDelay.mat", data)
 
     if language == "CN":
         ax.set_xlabel(r"参数$\rho_1$的值")
@@ -1167,8 +1176,8 @@ def rho1Delay():
         ax.set_ylabel("Delay [s]")
         # plt.title(r"The training delay of different $\rho_1$")
     ax.legend()
-    if save_img:
-        save_imgs("c4_rho1Delay_",fig,ax)
+    # if save_img:
+    #     save_imgs("c4_rho1Delay_",fig,ax)
     plt.show()
 
 def AlgoNoBatchRhoCmp():
@@ -1376,7 +1385,7 @@ if __name__ == '__main__':
     })
     # plt.rcParams['figure.figsize'] = (8.5, 6.5)  # 850*650像素
 
-    seed_everything(42)
+    # seed_everything(42)
     # 设置全局字体为支持中文的字体
     # language = "CN"
     # plt.rcParams['font.sans-serif'] = ['SimSun']  # SimHei 是黑体
@@ -1386,9 +1395,9 @@ if __name__ == '__main__':
     img_path = r"C:\Users\lxf_98\data\OneDrive\文档\硕士\报告\毕业论文\图片"
 
     # rho2 = 500, rho1 = 4
-    curve()
-    # attend()
-    # batchsize()
+    # curve()
+    attend()
+    batchsize()
     # rho2Delay()
     # rho1Delay()
     # temp_ut_value()

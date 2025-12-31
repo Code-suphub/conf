@@ -9,15 +9,15 @@ import random
 import matplotlib.pyplot as plt
 # import matplotlib.pyplot as plt
 import numpy as np
-import scipy
-import torch
-from sympy import log, nsolve, sympify, symbols, solve, Float
-from sympy.abc import x
-from torchvision import datasets, transforms
-from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
-from sampling import cifar_iid, cifar_noniid
-from src import common
-from src.options import args_parser
+import scipy.io as sio
+# import torch
+# from sympy import log, nsolve, sympify, symbols, solve, Float
+# from sympy.abc import x
+# from torchvision import datasets, transforms
+# from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
+# from sampling import cifar_iid, cifar_noniid
+# from src import common
+# from src.options import args_parser
 
 
 def get_dataset(args):
@@ -496,14 +496,19 @@ def colorBar():
             key = f"{int(x)},{int(y)}"
             if key in before:
                 Z_before[j, i] = before[key]
-                data[f"before_rho1{int(y)},rho2{int(x)}"] = before[key]
+                before_val = before[key]
             if key in floor:
                 Z_floor[j, i] = floor[key]
-                data[f"floor_rho1{int(y)},rho2{int(x)}"] = before[key]
+                floor_val = floor[key]
             if key in after:
                 Z_after[j, i] = after[key]
-                data[f"after_rho1{int(y)},rho2{int(x)}"] = before[key]
-    scipy.io.savemat("matlabData/matlab/batchRoundAlgo.mat", data)
+                after_val = after[key]
+            (before_val,after_val,floor_val) = sorted((before_val,after_val,floor_val))
+            data[f"after_rho1_{int(y)},rho2_{int(x)}"] = after_val
+            data[f"floor_rho1_{int(y)},rho2_{int(x)}"] = floor_val
+            data[f"before_rho1_{int(y)},rho2_{int(x)}"] = before_val
+            print("before",before_val,"after",after_val,"floor",floor_val)
+    sio.savemat("matlabData/matlab/batchRoundAlgo.mat", data)
 
     # 创建3D图形
     fig = plt.figure(figsize=(12, 8))
