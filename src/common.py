@@ -24,7 +24,7 @@ epoch_map = {
 def get_file_name(args,file_type,extra="",alpha=0):
     print("this is "+ file_type + " training ")
     args.epochs = epoch_map[file_type]
-    file_type = f"final_alpha[{alpha}]_compute_down_ten_time"+file_type
+    file_type = f"batch_one_final_alpha[{alpha}]_compute_down_ten_time"+file_type
     file_name =  (file_base + file_type + file_mid + extra + file_tail). \
         format(args.dataset, args.model, args.epochs, args.frac, args.iid,
                args.local_ep, args.local_bs, args.lr)
